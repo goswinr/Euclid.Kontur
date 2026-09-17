@@ -2,11 +2,10 @@
 
 Boolean operations (union, intersection, difference, xor) on 2D shapes made of closed
 `Polyline2D`s from Euclid. Float coordinates only, no integer grid, no sweep line.
-Segment pairs are found with a Bounding Volume Hierarchy (Euclid.BVH) while walking the paths.
+Segment pairs are found with a private Bounding Volume Hierarchy modelled on Euclid.BVH.
 
 This is a design document, not documentation of existing code. Every section marked
-**Decision** is a choice I recommend. The **Open questions** section at the end lists the
-ones where a different answer changes the design materially.
+**Decision** is a choice that was reviewed. Section 11 lists the review outcome.
 
 ## 1. Goals and non goals
 
@@ -89,7 +88,7 @@ type Shape =
 
 `Shape` wraps the polylines it is given. It does not copy them and does not validate them
 beyond "closed and at least 3 distinct points" at operation time. Open polylines fail with an
-`EuclidException` style error, they are not silently closed. (Open question 3.)
+`EuclidException` style error, they are not silently closed.
 
 ### 3.2 Operations
 
@@ -124,7 +123,7 @@ type BoolOpsEngine (tolerance: float) =
     member RemoveCollinear : bool with get, set
 ```
 
-`tolerance` is absolute, in the units of the coordinates. Default `1e-6`. (Open question 2.)
+`tolerance` is absolute, in the units of the coordinates. Default `1e-6`.
 
 ## 4. Pipeline
 
@@ -157,9 +156,9 @@ vertices, segments and edges. The phases:
 
 ```fsharp
 // engine fields, all grow only and reused between executions
-xy        : ResizeArray<float>   // interleaved x0 y0 x1 y1 ..  same layout as Polyline2D.XYs
-pathStart : ResizeArray<int>     // first vertex index of each path, length pathCount + 1
-pathGroup : ResizeArray<int>     // 0 subject, 1 clip
+xy        : float[]   // interleaved x0 y0 x1 y1 ..  same layout as Polyline2D.XYs, plus vertexCount
+pathStart : int[]     // first vertex index of each path, length pathCount + 1
+pathGroup : int[]     // 0 subject, 1 clip
 segCount  : int                  // number of input segments
 ```
 
@@ -171,14 +170,14 @@ search in `pathStart` or, cheaper, stored as `segPath : int[]` filled during ing
 Ingest drops consecutive vertices closer than `tolerance` (zero length segments) and paths
 that end up with fewer than 3 distinct vertices. It does not remove collinear vertices.
 
-Bulk copy from `Polyline2D.XYs` is a `ResizeArray.AddRange`, which Fable supports.
+The copy from `Polyline2D.XYs` into `xy` is a plain loop after one `ensureCapacity`.
 
 ### 4.2 Intersect
 
 Build a `Bvh2d` over the segment rectangles, expanded by `tolerance`. Then a **dual tree
 self traversal** reports every pair of segments whose rectangles overlap, each unordered pair
-once. This is the `ClosePairsByIdx` traversal that Euclid.BVH already has, with a callback
-instead of a result list. See section 5 for the additions to Euclid.BVH.
+once. This is the same traversal as `ClosePairsByIdx` in Euclid.BVH, with an inlined visitor
+instead of a result list. See section 5.
 
 For every candidate pair `(p, q)` classify, in this order, because earlier cases reuse
 existing vertices and later ones create new ones:
@@ -194,9 +193,10 @@ existing vertices and later ones create new ones:
 A split event is three parallel entries:
 
 ```fsharp
-splitSeg  : ResizeArray<int>    // segment index
-splitT    : ResizeArray<float>  // parameter along the segment, 0 < t < 1
-splitVert : ResizeArray<int>    // vertex index, existing or newly appended
+splitSeg  : int[]    // segment index
+splitT    : float[]  // parameter along the segment, 0 < t < 1
+splitVert : int[]    // vertex index, existing or newly appended
+splitCount : int
 ```
 
 The T junction test before the crossing test is what makes an input vertex sitting on another
@@ -224,9 +224,9 @@ collapse to one.
 Output of the phase: the pre-cluster edge list
 
 ```fsharp
-edgeFrom  : ResizeArray<int>   // vertex index
-edgeTo    : ResizeArray<int>
-edgeGroup : ResizeArray<int>   // 0 subject, 1 clip; direction is the path direction
+edgeFrom  : int[]   // vertex index
+edgeTo    : int[]
+edgeGroup : int[]   // 0 subject, 1 clip; direction is the path direction
 ```
 
 ### 4.4 Cluster
@@ -314,8 +314,7 @@ edge, because such a segment would have been split there.
 
 Per edge ray casting (no propagation) is kept as a **test oracle**: every test compares the
 propagated winding numbers against a ray cast per edge. It is O(E * sqrt N) instead of O(E)
-and easier to get right, so if propagation turns out fragile it is the fallback. (Open
-question 5.)
+and easier to get right, so if propagation turns out fragile it is the fallback.
 
 ### 4.7 Select
 
