@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="BoolOps.fsproj" />
+  <Project Path="Test/Test.fsproj" />
+</Solution>

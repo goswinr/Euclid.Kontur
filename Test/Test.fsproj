@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>preview</LangVersion>
+    <WarningLevel>5</WarningLevel>
+    <OtherFlags>$(OtherFlags) --warnon:1182</OtherFlags>    <!-- 1182: warn on unused variables -->
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Expecto" Version="11.1.0" />
+    <PackageReference Include="Fable.Mocha" Version="2.17.0" />
+    <ProjectReference Include="../BoolOps.fsproj" />
+
+    <Compile Include="TestFillRule.fs" />
+    <Compile Include="TestShape.fs" />
+    <Compile Include="TestBuffers.fs" />
+    <Compile Include="TestBvh.fs" />
+    <Compile Include="TestMain.fs" />
+  </ItemGroup>
+</Project>
