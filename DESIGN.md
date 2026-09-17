@@ -72,8 +72,16 @@ type ClipType =
 
 /// A region of the plane, defined by one or more closed Polyline2Ds and a fill rule.
 /// Paths may self intersect, overlap each other, or be nested. The fill rule decides what is inside.
+/// The fill rule belongs to the Shape, not to the boolean operation, unlike in Clipper.
+/// Subject and clip get separate winding numbers on every edge, and each fill rule is applied to
+/// its own winding number before the boolean combines them. So two different fill rules never
+/// conflict, they are two independent decisions.
+/// What this buys is one pass instead of two: an EvenOdd glyph unioned with a NonZero CAD outline
+/// works in one operation. With a fill rule per operation the glyph would have to be simplified
+/// first, then unioned.
 /// Shapes returned by a boolean operation are always simple: no self intersections, no overlaps,
-/// outer paths counter clockwise, holes clockwise, and their fill rule is Positive.
+/// outer paths counter clockwise, holes clockwise, and their fill rule is Positive. Such a result
+/// reads the same under NonZero, Positive and EvenOdd, so the rule of a result never has to be changed.
 type Shape =
     member Paths : ResizeArray<Polyline2D>   // each path is closed: first point equals last point
     member FillRule : FillRule
@@ -85,6 +93,10 @@ type Shape =
     static member create : paths: seq<Polyline2D> * fillRule: FillRule -> Shape
     static member ofPolyline : Polyline2D * ?fillRule: FillRule -> Shape   // default NonZero
 ```
+
+The docstring above is part of the design: the reason for the fill rule living on the `Shape`
+must stay explicit in the published XML docs of `Shape`, `Shape.create` and `FillRule`, so a
+reader coming from Clipper sees why this differs.
 
 `Shape` wraps the polylines it is given. It does not copy them and does not validate them
 beyond "closed and at least 3 distinct points" at operation time. Open polylines fail with an
@@ -488,7 +500,8 @@ Reviewed on 2026-09-17. These replace the earlier open questions.
 | 2 | topology independent of determinant signs | accepted as the robustness foundation (section 7) |
 | 3 | finding segment pairs | dual tree self traversal, each unordered pair once |
 | 4 | tree | private BVH inside BoolOps, four float arrays per item, no Euclid.BVH dependency (section 5) |
-| 5 | fill rule | on the `Shape`, results are always `Positive` and oriented |
+| 5 | fill rule | on the `Shape`, results are always `Positive` and oriented; the reason is spelled out in the `Shape` docstring, section 3.1 |
+| 5b | tolerance | on the `BoolOpsEngine` constructor, with a default and a `...With tolerance` variant on the convenience functions; kept as is for now |
 | 6 | Fable | both targets must be fast: raw typed arrays, no struct returns in hot loops, Node benchmarks (section 6) |
 | 7 | winding | per edge ray casting first as the test oracle, then O(E) propagation, ship with propagation (section 4.6) |
 
