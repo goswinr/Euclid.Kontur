@@ -15,6 +15,7 @@
     <Compile Include="TestShape.fs" />
     <Compile Include="TestBuffers.fs" />
     <Compile Include="TestBvh.fs" />
+    <Compile Include="TestEngine.fs" />
     <Compile Include="TestMain.fs" />
   </ItemGroup>
 </Project>

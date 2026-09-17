@@ -46,35 +46,39 @@ module internal Buffers =
                     idx.[j + 1] <- idx.[j]
                     j <- j - 1
                 idx.[j + 1] <- v
-        let rec quickSort lo0 hi0 =
-            let mutable lo = lo0
-            let mutable hi = hi0
-            while hi - lo > 16 do
-                // put the median of first, middle and last item into the middle, which also places sentinels at both ends:
-                let mid = lo + (hi - lo) / 2
-                if less idx.[mid] idx.[lo]  then swap mid lo
-                if less idx.[hi]  idx.[lo]  then swap hi  lo
-                if less idx.[hi]  idx.[mid] then swap hi  mid
-                let pivot = idx.[mid]
-                // Hoare partition:
-                let mutable i = lo
-                let mutable j = hi
-                while i <= j do
-                    while less idx.[i] pivot do i <- i + 1
-                    while less pivot idx.[j] do j <- j - 1
-                    if i <= j then
-                        swap i j
-                        i <- i + 1
-                        j <- j - 1
-                // recurse into the smaller part, loop on the bigger one:
-                if j - lo < hi - i then
-                    quickSort lo j
-                    lo <- i
-                else
-                    quickSort i hi
-                    hi <- j
-            insertionSort lo hi
-        if last > first then quickSort first last
+        if last - first < 16 then
+            // the common case of a short range needs no closure for the recursion below:
+            insertionSort first last
+        else
+            let rec quickSort lo0 hi0 =
+                let mutable lo = lo0
+                let mutable hi = hi0
+                while hi - lo > 16 do
+                    // put the median of first, middle and last item into the middle, which also places sentinels at both ends:
+                    let mid = lo + (hi - lo) / 2
+                    if less idx.[mid] idx.[lo]  then swap mid lo
+                    if less idx.[hi]  idx.[lo]  then swap hi  lo
+                    if less idx.[hi]  idx.[mid] then swap hi  mid
+                    let pivot = idx.[mid]
+                    // Hoare partition:
+                    let mutable i = lo
+                    let mutable j = hi
+                    while i <= j do
+                        while less idx.[i] pivot do i <- i + 1
+                        while less pivot idx.[j] do j <- j - 1
+                        if i <= j then
+                            swap i j
+                            i <- i + 1
+                            j <- j - 1
+                    // recurse into the smaller part, loop on the bigger one:
+                    if j - lo < hi - i then
+                        quickSort lo j
+                        lo <- i
+                    else
+                        quickSort i hi
+                        hi <- j
+                insertionSort lo hi
+            quickSort first last
 
     /// Sorts idx.[first..last] in place by ascending key, where the keys array is indexed by the item ids stored in idx.
     /// Not inline, so that it can be called from the tests. Inside the library use sortIndices directly.

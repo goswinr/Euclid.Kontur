@@ -316,13 +316,15 @@ so winding values propagate along edges. A breadth first walk over edges (a reus
 queue) visits every edge once. The whole phase is O(E) after the angular sort.
 
 Seed per component: the first unvisited edge gets its right side winding from a ray cast.
-The ray starts at the edge midpoint. For a non horizontal edge in canonical upward direction
-the ray goes to `+x` and starts on the right side; for a horizontal edge it goes to `-y`.
-Crossings are counted against the **input** segments through the segment BVH with the half
-open rule (`y0 <= py` differs from `y1 <= py`), `+1` for a segment going up, `-1` going down.
-Crossings whose x coordinate is within `tolerance` of the midpoint are skipped: those are the
-edge's own collinear parents. Nothing else passes within tolerance of the interior of a sub
-edge, because such a segment would have been split there.
+The ray does not start on the edge itself. Snapping a vertex onto a segment or merging vertices
+within tolerance bends a sub edge away from its parent by up to the tolerance, and a point on the
+sub edge can fall into that sliver, on the wrong side of the parent (found by the first tolerance
+test). So the ray starts twice the tolerance away from the midpoint on the right side of the edge,
+and goes to `+x`. Crossings with the **input** segments are counted through the segment BVH with
+the exact half open rule (`y0 <= py` differs from `y1 <= py`), `+1` for a segment going up, `-1`
+going down, which is the exact winding number of the input at the start point. No exclusion of
+the edge's own parents and no special case for horizontal edges is needed. The left side is the
+right side plus the edge's delta.
 
 Per edge ray casting (no propagation) is kept as a **test oracle**: every test compares the
 propagated winding numbers against a ray cast per edge. It is O(E * sqrt N) instead of O(E)

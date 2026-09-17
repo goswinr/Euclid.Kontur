@@ -22,6 +22,8 @@ let run () =
     test TestBuffers.tests
     |||
     test TestBvh.tests
+    |||
+    test TestEngine.tests
 
 #if FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT
 #nowarn "20" //The result of this expression has type 'int' and is implicitly ignored.

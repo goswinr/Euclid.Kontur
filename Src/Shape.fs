@@ -106,6 +106,10 @@ type Shape private (paths: ResizeArray<Polyline2D>, fillRule: FillRule) =
         ps.Add path
         Shape (ps, fillRule)
 
+    /// Creates a Shape without checking the paths. For results of the engine, whose paths are closed by construction.
+    static member internal createUnchecked (paths: ResizeArray<Polyline2D>, fillRule: FillRule) : Shape =
+        Shape (paths, fillRule)
+
     /// Creates an empty Shape without any paths.
     static member empty (fillRule: FillRule) : Shape =
         Shape (ResizeArray<Polyline2D> 0, fillRule)

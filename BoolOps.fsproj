@@ -63,6 +63,14 @@
     <Compile Include="Src/Shape.fs" />
     <Compile Include="Src/Buffers.fs" />
     <Compile Include="Src/Bvh.fs" />
+    <Compile Include="Src/EngineState.fs" />
+    <Compile Include="Src/Ingest.fs" />
+    <Compile Include="Src/Intersect.fs" />
+    <Compile Include="Src/Graph.fs" />
+    <Compile Include="Src/Winding.fs" />
+    <Compile Include="Src/Link.fs" />
+    <Compile Include="Src/Engine.fs" />
+    <Compile Include="Src/BoolOps.fs" />
   </ItemGroup>
 
   <Target Name="CopyReadmeToDocs" AfterTargets="Build">    <!-- for fsdocs to build locally -->

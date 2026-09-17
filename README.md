@@ -10,9 +10,10 @@ Boolean operations (union, intersection, difference, xor) on 2D polygons of the
 [Euclid](https://github.com/goswinr/Euclid) geometry library.
 Like Euclid itself it also compiles to JavaScript and TypeScript via [Fable](https://fable.io/).
 
-**Status: under construction.** The public types `Shape`, `FillRule` and `ClipType` and the internal
-foundations exist, the boolean operations themselves do not yet. See [DESIGN.md](DESIGN.md) for the
-full design and the reasoning behind it.
+**Status: early.** Union, intersection, difference, xor, simplify and union of many shapes work and are
+tested against a point in region oracle on random and degenerate input, on .NET and under Node.
+Not yet done: the faster winding propagation, benchmarks, the SVG visualisation, and hardening on real world
+data. See [DESIGN.md](DESIGN.md) for the full design and the reasoning behind it.
 
 ## What is different from Clipper2 and iOverlay
 
@@ -41,9 +42,17 @@ let a = Shape.ofPolyline outline               // NonZero by default
 let b = Shape.create (glyph, FillRule.EvenOdd) // the rule is part of the Shape
 
 a.Contains (Pt (1.0, 2.0))  // point in region test under the Shape's fill rule
+
+let cut = BoolOps.difference a b          // a fresh engine with the default tolerance of 1e-6
+let merged = BoolOps.unionAll [ a; b ]    // each shape under its own rule, then one NonZero merge
+
+// for many operations reuse one engine, it keeps all its buffers:
+let engine = BoolOpsEngine 1e-4           // absolute tolerance in the units of the coordinates
+let r = engine.Execute (a, b, ClipType.Intersection)
 ```
 
-Boolean operations will follow the API laid out in [DESIGN.md](DESIGN.md).
+Results are always simple: no self intersections, no overlaps, outer contours counter clockwise,
+holes clockwise, fill rule `Positive`. Input vertices keep their exact coordinates.
 
 ## Building and testing
 
