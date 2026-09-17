@@ -106,6 +106,15 @@ type internal EngineState (tolerance: float) =
     /// Scratch: the clip winding number accumulated by the current ray cast.
     member val RayC : int = 0 with get, set
 
+    /// Scratch: vertex ids sorted by X, so that the first unprocessed vertex is the leftmost of its component.
+    member val VertOrder : int[] = Array.zeroCreate 0 with get, set
+    /// Scratch: 1 for every vertex whose ring has been assigned winding numbers.
+    member val VertDone : int[] = Array.zeroCreate 0 with get, set
+    /// Scratch: the queue of half edges through which the propagation reaches the next vertices.
+    member val Queue : int[] = Array.zeroCreate 0 with get, set
+    /// Scratch: the count of half edges pushed onto the queue.
+    member val QueueEnd : int = 0 with get, set
+
     /// The subject winding number on the left side of each graph edge, looking from GA to GB. The right side is left minus GDeltaS.
     member val WindLeftS : int[] = Array.zeroCreate 0 with get, set
     /// The clip winding number on the left side of each graph edge, looking from GA to GB. The right side is left minus GDeltaC.

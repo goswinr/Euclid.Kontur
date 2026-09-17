@@ -287,6 +287,62 @@ type internal Bvh (leafSize: int) =
                         stackA.[sp + 1] <- na ; stackB.[sp + 1] <- nRight.[nb]
                         sp <- sp + 2
 
+    /// <summary>Calls the visitor with every pair of an item of this tree and an item of the other tree whose
+    /// rectangles are closer to each other than the maximum distance, or overlap. The first argument is the id
+    /// in this tree, the second the id in the other tree. A dual tree traversal like VisitClosePairs.
+    /// Both trees must be built. The visitor must not query either tree. Uses the stacks of this tree.</summary>
+    member inline b.VisitClosePairsWith (other: Bvh, maxDistance: float, [<InlineIfLambda>] visit: int -> int -> unit) : unit =
+        if b.NodeCount > 0 && other.NodeCount > 0 then
+            let sqMaxDist = maxDistance * maxDistance
+            // the pair stack needs room for the depths of both trees:
+            b.StackA <- Buffers.ensureInt b.StackA 0 (2 * (b.Depth + other.Depth) + 8)
+            b.StackB <- Buffers.ensureInt b.StackB 0 (2 * (b.Depth + other.Depth) + 8)
+            let stackA = b.StackA
+            let stackB = b.StackB
+            let aMinX = b.NodeMinX
+            let aMinY = b.NodeMinY
+            let aMaxX = b.NodeMaxX
+            let aMaxY = b.NodeMaxY
+            let aLeft = b.NodeLeftOrStart
+            let aRight = b.NodeRightChild
+            let aCount = b.NodeItemCount
+            let aIdx = b.ItemIndices
+            let bMinX = other.NodeMinX
+            let bMinY = other.NodeMinY
+            let bMaxX = other.NodeMaxX
+            let bMaxY = other.NodeMaxY
+            let bLeft = other.NodeLeftOrStart
+            let bRight = other.NodeRightChild
+            let bCount = other.NodeItemCount
+            let bIdx = other.ItemIndices
+            let mutable sp = 1
+            stackA.[0] <- 0
+            stackB.[0] <- 0
+            while sp > 0 do
+                sp <- sp - 1
+                let na = stackA.[sp]
+                let nb = stackB.[sp]
+                if BvhUtil.sqRectDist aMinX.[na] aMinY.[na] aMaxX.[na] aMaxY.[na] bMinX.[nb] bMinY.[nb] bMaxX.[nb] bMaxY.[nb] <= sqMaxDist then
+                    let countA = aCount.[na]
+                    let countB = bCount.[nb]
+                    if countA > 0 && countB > 0 then // both leaves
+                        let startA = aLeft.[na]
+                        let startB = bLeft.[nb]
+                        for i = startA to startA + countA - 1 do
+                            let ii = aIdx.[i]
+                            for j = startB to startB + countB - 1 do
+                                let jj = bIdx.[j]
+                                if BvhUtil.sqRectDist b.MinX.[ii] b.MinY.[ii] b.MaxX.[ii] b.MaxY.[ii] other.MinX.[jj] other.MinY.[jj] other.MaxX.[jj] other.MaxY.[jj] <= sqMaxDist then
+                                    visit ii jj
+                    elif countA = 0 then // descend into a
+                        stackA.[sp] <- aLeft.[na] ; stackB.[sp] <- nb
+                        stackA.[sp + 1] <- aRight.[na] ; stackB.[sp + 1] <- nb
+                        sp <- sp + 2
+                    else // a is a leaf, descend into b
+                        stackA.[sp] <- na ; stackB.[sp] <- bLeft.[nb]
+                        stackA.[sp + 1] <- na ; stackB.[sp + 1] <- bRight.[nb]
+                        sp <- sp + 2
+
     /// The ids of all items whose rectangle overlaps or touches the query rectangle, in undefined order.
     /// A convenience for tests and debugging, use VisitInRect in the library itself.
     member b.ItemsInRect (qMinX: float, qMinY: float, qMaxX: float, qMaxY: float) : ResizeArray<int> =
@@ -300,4 +356,12 @@ type internal Bvh (leafSize: int) =
     member b.ClosePairs (maxDistance: float) : ResizeArray<int> =
         let r = ResizeArray<int> ()
         b.VisitClosePairs (maxDistance, fun i j -> r.Add i ; r.Add j)
+        r
+
+    /// All pairs of an item of this tree and an item of the other tree closer than the maximum distance,
+    /// as a flat list: i0, j0, i1, j1, ... in undefined order.
+    /// A convenience for tests and debugging, use VisitClosePairsWith in the library itself.
+    member b.ClosePairsWith (other: Bvh, maxDistance: float) : ResizeArray<int> =
+        let r = ResizeArray<int> ()
+        b.VisitClosePairsWith (other, maxDistance, fun i j -> r.Add i ; r.Add j)
         r

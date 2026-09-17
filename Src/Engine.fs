@@ -50,7 +50,7 @@ type BoolOpsEngine (tolerance: float) =
             Graph.cluster s
             Graph.buildEdges s
             Graph.buildRings s
-            Winding.computeByRayCast s
+            Winding.propagate s
             Link.select s subject.FillRule clip.FillRule op
             Link.link s results
         Shape.createUnchecked (results, FillRule.Positive)

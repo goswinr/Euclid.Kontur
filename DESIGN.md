@@ -301,34 +301,52 @@ are nearly parallel. For nearly parallel edges the geometric order may be wrong,
 For every edge we need the winding number of subject and of clip on its left side. The right
 side follows from `left - delta`.
 
-**Decision:** propagate winding numbers through the graph, and use a BVH ray cast only once
+**Decision (implemented):** propagate winding numbers through the graph, and use one ray cast
 per connected component to seed it.
 
-Propagation around a vertex: with incident edges sorted counter clockwise `e0 .. ek`, the
-wedge between `ei` and `ei+1` is a region. Going counter clockwise across `ei` (leaving the
+Propagation around a vertex: with incident half edges sorted counter clockwise `h0 .. hk`, the
+wedge between `hi` and `hi+1` is a region. Going counter clockwise across `hi` (leaving the
 vertex along it) crosses from its right wedge to its left wedge, so the wedge winding changes
-by `+delta` if `ei` leaves the vertex in canonical direction and `-delta` if it enters. The
-sum of these around a full circle is zero for any consistent input, so a wrong angular order
-of two edges affects only the wedge between them.
+by `+delta` if `hi` leaves the vertex in canonical direction (even half edge id) and `-delta`
+if it leaves against it (odd id). The sum of these around a full circle is zero for any
+consistent input, so a wrong angular order of two edges affects only the wedge between them.
 
 The left wedge of an edge at vertex `a` and its left wedge at vertex `b` are the same face,
-so winding values propagate along edges. A breadth first walk over edges (a reusable `int[]`
-queue) visits every edge once. The whole phase is O(E) after the angular sort.
+so winding values propagate along edges. A breadth first walk over half edges (a reusable
+`int[]` queue) visits every vertex once and assigns all its edges. The whole phase is O(E)
+after the angular sort, and all edges of a component are consistent with each other by
+construction, whatever the seed.
 
-Seed per component: the first unvisited edge gets its right side winding from a ray cast.
-The ray does not start on the edge itself. Snapping a vertex onto a segment or merging vertices
-within tolerance bends a sub edge away from its parent by up to the tolerance, and a point on the
-sub edge can fall into that sliver, on the wrong side of the parent (found by the first tolerance
-test). So the ray starts twice the tolerance away from the midpoint on the right side of the edge,
-and goes to `+x`. Crossings with the **input** segments are counted through the segment BVH with
-the exact half open rule (`y0 <= py` differs from `y1 <= py`), `+1` for a segment going up, `-1`
-going down, which is the exact winding number of the input at the start point. No exclusion of
-the edge's own parents and no special case for horizontal edges is needed. The left side is the
-right side plus the edge's delta.
+Seed per component: vertices are processed in order of increasing `x`. The first unprocessed
+vertex is the leftmost of its component, so every edge of the component leaves it towards
+`+x` or straight up or down, and the wedge containing the direction just above `+x` is known:
+it is the wedge after the last half edge with pseudo angle `0.0` (an edge going exactly to
+`+x`), else the wedge after the last half edge of the ring. Its winding is found by one ray
+cast from a point a hair (1e-9 relative) to the right of the vertex, going to `+x`, counting
+crossings with the **input** segments through the segment BVH with the exact half open rule
+(`y0 <= py` differs from `y1 <= py`), `+1` for a segment going up, `-1` going down.
+Every segment through the vertex crosses the ray at the vertex itself, left of the start, so
+it is excluded exactly; every other segment is counted exactly. The half open rule treats a
+point on a horizontal segment as lying on that segment's upper side, which is why the seed
+wedge is the one above a horizontal edge leaving to the right.
 
-Per edge ray casting (no propagation) is kept as a **test oracle**: every test compares the
-propagated winding numbers against a ray cast per edge. It is O(E * sqrt N) instead of O(E)
-and easier to get right, so if propagation turns out fragile it is the fallback.
+Two earlier variants were tried and rejected, and the reasons matter for anyone revisiting this:
+
+- A ray from the midpoint of every edge (per edge ray casting): a vertex snapped onto a segment
+  bends the sub edge away from its parent by up to the tolerance, and the midpoint can fall into
+  that sliver, on the wrong side of the parent. Offsetting the start by twice the tolerance
+  fixes that but then a segment passing within that offset without being split (which the
+  tolerance model allows) is crossed instead. Both errors make edges of one vertex disagree,
+  and linking fails. Per edge ray casting survives in `Winding.computeByRayCast` as a test
+  oracle for clean input only.
+- A seed on the `-x` side of the leftmost vertex, at tolerance distance: segments passing within
+  tolerance of an intersection vertex are not split at it, and one crossing the ray between the
+  start and the vertex flips the whole component. Starting a hair to the right of the vertex
+  needs no tolerance at all.
+
+Slivers at the tolerance scale (a segment passing within tolerance of an intersection vertex
+without sharing it) remain as tiny faces of the graph. They are consistent, they only make
+point in region answers inside them fuzzy, which the tolerance model allows.
 
 ### 4.7 Select
 
@@ -505,7 +523,7 @@ Reviewed on 2026-09-17. These replace the earlier open questions.
 | 5 | fill rule | on the `Shape`, results are always `Positive` and oriented; the reason is spelled out in the `Shape` docstring, section 3.1 |
 | 5b | tolerance | on the `BoolOpsEngine` constructor, with a default and a `...With tolerance` variant on the convenience functions; kept as is for now |
 | 6 | Fable | both targets must be fast: raw typed arrays, no struct returns in hot loops, Node benchmarks (section 6) |
-| 7 | winding | per edge ray casting first as the test oracle, then O(E) propagation, ship with propagation (section 4.6) |
+| 7 | winding | per edge ray casting was built first as the test oracle, O(E) propagation is implemented and shipped (section 4.6) |
 
 Still at their defaults, not yet discussed: absolute tolerance `1e-6` per engine, open input
 polylines fail, collinear output vertices preserved, no nesting tree in version 1,

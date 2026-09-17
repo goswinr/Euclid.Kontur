@@ -316,6 +316,32 @@ let tests =
             let tiny = Shape.ofPolyline (square 0.0 0.0 1e-8)
             Expect.isTrue (BoolOps.simplify tiny).IsEmpty "smaller than the tolerance vanishes"
 
+        testCase "propagated winding numbers agree with per edge ray casting on clean input" <| fun _ ->
+            let rand = Random 15
+            let engine = BoolOpsEngine 1e-6
+            for i in 1 .. 10 do
+                let a = Shape.create ([ randomStar rand 0.0 0.0 10.0 (5 + rand.Next 20) true; randomStar rand 3.0 1.0 4.0 7 false ], FillRule.NonZero)
+                let b = Shape.ofPolyline (randomTangle rand 2.0 2.0 9.0 (4 + rand.Next 8), FillRule.EvenOdd)
+                engine.Execute (a, b, ClipType.Xor) |> ignore
+                let st = engine.State
+                let byPropagation = Array.init st.GCount (fun e -> (st.WindLeftS.[e], st.WindLeftC.[e]))
+                Winding.computeByRayCast st
+                let byRayCast = Array.init st.GCount (fun e -> (st.WindLeftS.[e], st.WindLeftC.[e]))
+                Expect.equal byPropagation byRayCast $"winding numbers of run {i}"
+
+        testCase "two stars with thousands of thin spikes" <| fun _ ->
+            let rand = Random 16
+            let star cx cy corners =
+                poly [ for i in 0 .. corners - 1 do
+                        let a = 2.0 * Math.PI * float i / float corners
+                        let r = 100.0 * (0.5 + 0.5 * rand.NextDouble ())
+                        (cx + r * cos a, cy + r * sin a) ]
+            let a = Shape.ofPolyline (star 0.0 0.0 3000)
+            let b = Shape.ofPolyline (star 30.0 20.0 3000)
+            let engine = BoolOpsEngine 1e-6
+            checkAll rand engine a b
+            Graph.validate engine.State
+
         testCase "engine rejects bad tolerances and open paths" <| fun _ ->
             Expect.isTrue (fails (fun () -> BoolOpsEngine -1.0)) "negative"
             Expect.isTrue (fails (fun () -> BoolOpsEngine nan)) "nan"

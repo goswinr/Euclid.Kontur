@@ -134,6 +134,22 @@ let tests =
                 for q in queries do
                     Expect.equal (treeInRect bvh q) (bruteInRect rects q) "items in rect"
 
+        testCase "close pairs between two trees match brute force" <| fun _ ->
+            for (n, m) in [ (0, 10); (10, 0); (1, 1); (50, 300); (400, 60) ] do
+                let ra = randomRects n
+                let rb = randomRects m
+                let a = build ra 4
+                let b = build rb 3
+                for d in [ 0.0; 1.0; 4.0 ] do
+                    let sq = d * d
+                    let expected =
+                        [ for i in 0 .. n - 1 do
+                            for j in 0 .. m - 1 do
+                                if sqRectDist ra.[i] rb.[j] <= sq then $"{i},{j}" ] |> List.sort
+                    let flat = a.ClosePairsWith (b, d)
+                    let found = [ for k in 0 .. 2 .. flat.Count - 1 do $"{flat.[k]},{flat.[k + 1]}" ] |> List.sort
+                    Expect.equal found expected $"pairs for {n} x {m} at distance {d}"
+
         testCase "identical and zero size rectangles" <| fun _ ->
             let same = Array.create 40 { MinX = 1.0; MinY = 1.0; MaxX = 1.0; MaxY = 1.0 }
             let bvh = build same 4
