@@ -363,33 +363,58 @@ positive `SignedArea`, holes clockwise. The result `Shape` gets `FillRule.Positi
 With `RemoveCollinear` set, a vertex whose two output edges are collinear within tolerance is
 skipped while writing.
 
-## 5. Use of Euclid.BVH
+## 5. The private BVH
 
-BoolOps depends on Euclid and Euclid.BVH as NuGet packages. Two trees are built per operation:
+**Decision:** BoolOps depends on Euclid only. It carries its own internal BVH, modelled on
+`Bvh2d` in Euclid.BVH (flattened node array, median split along the longer axis with an in
+place quickselect, leaf size 4), but stored as flat float arrays instead of `BRect` structs so
+that neither .NET nor Fable allocates one object per rectangle:
 
-- `Bvh2d` over input segment rectangles, expanded by tolerance. Used for the intersect phase (dual tree self traversal) and for the winding seed ray casts (rectangle query with a half infinite rectangle).
-- `Bvh2d` over all vertices as zero size rectangles. Used once for the cluster phase.
+```fsharp
+type internal Bvh =                     // engine owned, reused between executions
+    // per item, indexed by item id:
+    mutable MinX : float[]
+    mutable MinY : float[]
+    mutable MaxX : float[]
+    mutable MaxY : float[]
+    // per node, flattened, root at 0:
+    mutable NodeMinX / NodeMinY / NodeMaxX / NodeMaxY : float[]
+    mutable NodeLeftOrStart : int[]   // leaf: start into ItemIndices, else left child
+    mutable NodeRightChild  : int[]   // -1 for a leaf
+    mutable NodeCount       : int[]   // > 0 for a leaf
+    mutable ItemIndices     : int[]   // permutation of item ids
+    mutable Keys            : float[] // scratch for the split keys
+    mutable ItemCount, NodeCount : int
+```
 
-Both are built from a `BRect[]` without an item array. The current Euclid.BVH API is missing
-three things, all small, all generally useful, to be added there rather than copied:
+Two trees are built per operation:
 
-1. `Bvh2d.createFromRects (rects: BRect[], ?leafSize)` public, like the 3D `Bvh.createFromBoxes`. Today `createWithRects` is internal. The item list becomes the index itself.
-2. `Bvh2d.VisitClosePairs (maxDistance, visit: int -> int -> unit)`: the existing dual tree traversal of `ClosePairsByIdx` with a callback instead of a `ResizeArray<BvhPair>`. `BvhPair` is a reference record, so the current API allocates one object per pair, which is exactly the hot path of the intersect phase. (Alternative: make `BvhPair` a struct. That helps .NET but not Fable, where structs are objects too.)
-3. `Bvh2d.VisitItemsInRect (rect, tolerance, visit: int -> unit)`: the existing `ItemsInRect` with a callback, for the ray casts.
+- over the input segments, rectangles expanded by `tolerance`, filled directly from the vertex buffer without an intermediate `BRect`. Used by the intersect phase (dual tree self traversal) and by the winding seed ray casts (query with a half infinite rectangle).
+- over all vertices as zero size rectangles, for the cluster phase.
 
-The callbacks are F# closures, one allocation per phase, not per element. Mutable state the
-callback needs lives in engine fields, not in captured `let mutable` locals, because F#
-turns captured mutable locals into heap ref cells.
+The traversals are `inline` members taking `[<InlineIfLambda>]` visitors, so the per pair
+and per item callbacks compile to loop bodies rather than closure calls:
 
-The tree is built from the rectangles with the existing median split along the longer axis.
-Segment rectangles are very elongated for long segments, which is a known weakness of any
-AABB tree on polygon edges. It is acceptable for version 1. If profiling shows it, a later
-version can split long segments virtually or use a grid for the intersect phase.
+```fsharp
+member inline VisitClosePairs : maxDistance: float * [<InlineIfLambda>] visit: (int -> int -> unit) -> unit
+member inline VisitInRect     : minX * minY * maxX * maxY * [<InlineIfLambda>] visit: (int -> unit) -> unit
+```
+
+Mutable state a visitor needs lives in engine fields, not in captured `let mutable` locals,
+because F# turns captured mutable locals into heap ref cells.
+
+Elongated segment rectangles are a known weakness of any AABB tree on polygon edges. It is
+acceptable for version 1. If profiling shows it, a later version can split long segments
+virtually or use a grid for the intersect phase.
+
+When the tree has stabilised it can be offered back to Euclid.BVH as a float array variant.
 
 ## 6. Allocation and performance rules
 
-- One `BoolOpsEngine` holds every buffer. Buffers are `ResizeArray<float>` and `ResizeArray<int>` where they grow, `float[]` and `int[]` with an "ensure capacity" pattern where the size is known per phase. `Clear` keeps capacity.
-- No per vertex, per segment or per edge objects. No tuples, no struct tuples in hot loops (Fable allocates them). Functions return one primitive and write extra results into engine fields.
+- Both targets are performance targets: .NET and Fable to JavaScript. Benchmarks run under both `dotnet` and Node.
+- One `BoolOpsEngine` holds every buffer. All buffers are raw `float[]` and `int[]` with a count and a doubling "ensure capacity" helper, never `ResizeArray`. Fable compiles `float[]` to `Float64Array` and `int[]` to `Int32Array`, while `ResizeArray<float>` becomes a plain JavaScript array of boxed numbers. `Clear` resets counts and keeps capacity.
+- No per vertex, per segment or per edge objects. No tuples, no struct tuples, no struct records in hot loops (Fable allocates them). Functions return one primitive and write extra results into engine fields.
+- Ingest copies from `Polyline2D.XYs` with a plain loop; that is the one place a `ResizeArray` is read.
 - No `int64` keys (Fable). No `Span`, `stackalloc`, `ArrayPool`, `CollectionsMarshal` (net472 and Fable).
 - No `Array.Sort(keys, items)` overloads (not in Fable). In place quicksort and insertion sort helpers on parallel `int[]`/`float[]` arrays live in one internal module, following `BvhUtil.selectNth` in Euclid.BVH.
 - No `atan2`, no `sqrt` in the hot loops. Squared distances against squared tolerance, pseudo angles for sorting.
@@ -435,10 +460,11 @@ and the residual crossings described in section 2 are not resolved.
 ## 10. Project layout
 
 ```
-BoolOps.fsproj              net6.0;net472, Fable content, references Euclid and Euclid.BVH
+BoolOps.fsproj              net6.0;net472, Fable content, references Euclid only
 Src/FillRule.fs             FillRule, ClipType, isInside, combine
 Src/Shape.fs                Shape
 Src/Buffers.fs              ensureCapacity helpers, in place sorts on parallel arrays
+Src/Bvh.fs                  the private float array BVH, section 5
 Src/Ingest.fs               phase 1
 Src/Intersect.fs            phases 2 and 3
 Src/Graph.fs                phases 4 and 5, pseudo angle
@@ -453,17 +479,20 @@ Docs/                       fsdocs, plus the SVG visualisation
 The engine owns the buffers and each phase module is a set of functions taking the engine.
 This keeps every phase testable on its own and keeps the buffers in one place.
 
-## 11. Open questions
+## 11. Decisions taken
 
-Answers to these change the design. My recommendation is stated for each.
+Reviewed on 2026-09-17. These replace the earlier open questions.
 
-1. **Meaning of exact.** Tolerance model (recommended, section 2), or exact predicates on the input floats with rounded constructions (CGAL Epick style, needs `orient2d` with an adaptive exact fallback, about 300 lines, Fable safe)? The second is more work and still needs a tolerance for the constructed points, so it only buys exactness for predicates on input vertices.
-2. **Tolerance default and scope.** Absolute, `1e-6`, settable per engine (recommended). Alternative: relative to the bounding rectangle size, which behaves better across unit systems but makes results depend on the extent of the input.
-3. **Open input polylines.** Fail (recommended), or close them silently as Clipper does. Closing silently hides bugs in the caller.
-4. **Fill rule on the Shape** (recommended, so subject and clip can have different rules and results are self describing), or on the operation like Clipper. Per shape also makes `unionAll` of shapes with mixed rules well defined.
-5. **Winding by propagation** (recommended, O(E)) versus per edge ray casting (simpler, O(E sqrt N)) for version 1. I would build the ray cast first anyway because it is the oracle, then propagation.
-6. **Extending Euclid.BVH** with the three callback based members (recommended) or keeping a private copy of the tree inside BoolOps. A private copy could store rectangles as four `float[]`s, which on Fable avoids one object per rectangle, but that is optimisation for the secondary target.
-7. **Collinear output vertices.** Preserve by default (recommended, matches "input vertices come out unchanged"), or remove by default like Clipper.
-8. **Namespace and naming.** `namespace BoolOps` with types `Shape`, `BoolOpsEngine` and module `BoolOps`, or `namespace Euclid.BoolOps` to signal the dependency. `Clipper` as a type name is taken by the Clipper libraries and would confuse.
-9. **Result nesting tree** in version 1 or later. Later is recommended, orientation carries the information.
-10. **Fable priority.** Same source for both is a hard requirement (assumed). If Fable performance also matters, the BVH rectangle storage (item 6) and struct usage change.
+| # | question | decision |
+|---|---|---|
+| 1 | meaning of exact | tolerance model (section 2), no exact predicates in version 1 |
+| 2 | topology independent of determinant signs | accepted as the robustness foundation (section 7) |
+| 3 | finding segment pairs | dual tree self traversal, each unordered pair once |
+| 4 | tree | private BVH inside BoolOps, four float arrays per item, no Euclid.BVH dependency (section 5) |
+| 5 | fill rule | on the `Shape`, results are always `Positive` and oriented |
+| 6 | Fable | both targets must be fast: raw typed arrays, no struct returns in hot loops, Node benchmarks (section 6) |
+| 7 | winding | per edge ray casting first as the test oracle, then O(E) propagation, ship with propagation (section 4.6) |
+
+Still at their defaults, not yet discussed: absolute tolerance `1e-6` per engine, open input
+polylines fail, collinear output vertices preserved, no nesting tree in version 1,
+`namespace BoolOps`.
