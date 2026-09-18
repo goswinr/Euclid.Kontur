@@ -57,8 +57,7 @@ holes clockwise, fill rule `Positive`. Input vertices keep their exact coordinat
 
 ## Building and testing
 
-```
-dotnet build
+```bash
 dotnet run --project ./Test/Test.fsproj
 cd Test && npm install && npm test   # the same tests under Node with Fable
 ```

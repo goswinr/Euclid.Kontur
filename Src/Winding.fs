@@ -85,7 +85,7 @@ module internal Winding =
             order.[i] <- i
             vertDone.[i] <- 0
         Buffers.sortIndices order 0 (v - 1) (fun a b -> xy.[2 * a] < xy.[2 * b])
-        let tol = s.Tolerance
+        
         let mutable queueStart = 0
         s.QueueEnd <- 0
         for i = 0 to v - 1 do
