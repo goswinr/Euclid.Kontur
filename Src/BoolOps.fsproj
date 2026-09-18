@@ -64,6 +64,7 @@
 
     <Compile Include="FillRule.fs" />
     <Compile Include="Shape.fs" />
+    <Compile Include="Arr.fs" />
     <Compile Include="Buffers.fs" />
     <Compile Include="Bvh.fs" />
     <Compile Include="EngineState.fs" />

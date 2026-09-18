@@ -96,10 +96,10 @@ type internal Bvh (leafSize: int) =
 
     /// Sets the rectangle of the item. Min must not be bigger than max on either axis.
     member b.SetRect (item: int, minX: float, minY: float, maxX: float, maxY: float) : unit =
-        b.MinX.[item] <- minX
-        b.MinY.[item] <- minY
-        b.MaxX.[item] <- maxX
-        b.MaxY.[item] <- maxY
+        Arr.set b.MinX item minX
+        Arr.set b.MinY item minY
+        Arr.set b.MaxX item maxX
+        Arr.set b.MaxY item maxY
 
     /// Builds the tree over the first ItemCount rectangles.
     member b.Build () : unit =
@@ -129,7 +129,7 @@ type internal Bvh (leafSize: int) =
         let nRight = b.NodeRightChild
         let nCount = b.NodeItemCount
         for i = 0 to n - 1 do
-            idx.[i] <- i
+            Arr.set idx i i
         b.Depth <- 0
 
         // recursively builds the node for idx.[start .. start+count-1] into slot nodeIdx and its
@@ -137,45 +137,45 @@ type internal Bvh (leafSize: int) =
         let rec buildNode nodeIdx start count level : int =
             if level > b.Depth then b.Depth <- level
             // the rectangle around all items of this node:
-            let mutable rMinX = minX.[idx.[start]]
-            let mutable rMinY = minY.[idx.[start]]
-            let mutable rMaxX = maxX.[idx.[start]]
-            let mutable rMaxY = maxY.[idx.[start]]
+            let mutable rMinX = Arr.get minX (Arr.get idx start)
+            let mutable rMinY = Arr.get minY (Arr.get idx start)
+            let mutable rMaxX = Arr.get maxX (Arr.get idx start)
+            let mutable rMaxY = Arr.get maxY (Arr.get idx start)
             for i = start + 1 to start + count - 1 do
-                let ii = idx.[i]
-                if minX.[ii] < rMinX then rMinX <- minX.[ii]
-                if minY.[ii] < rMinY then rMinY <- minY.[ii]
-                if maxX.[ii] > rMaxX then rMaxX <- maxX.[ii]
-                if maxY.[ii] > rMaxY then rMaxY <- maxY.[ii]
-            nMinX.[nodeIdx] <- rMinX
-            nMinY.[nodeIdx] <- rMinY
-            nMaxX.[nodeIdx] <- rMaxX
-            nMaxY.[nodeIdx] <- rMaxY
+                let ii = Arr.get idx i
+                if Arr.get minX ii < rMinX then rMinX <- Arr.get minX ii
+                if Arr.get minY ii < rMinY then rMinY <- Arr.get minY ii
+                if Arr.get maxX ii > rMaxX then rMaxX <- Arr.get maxX ii
+                if Arr.get maxY ii > rMaxY then rMaxY <- Arr.get maxY ii
+            Arr.set nMinX nodeIdx rMinX
+            Arr.set nMinY nodeIdx rMinY
+            Arr.set nMaxX nodeIdx rMaxX
+            Arr.set nMaxY nodeIdx rMaxY
             if count <= leafSize then
-                nLeft.[nodeIdx]  <- start
-                nRight.[nodeIdx] <- -1
-                nCount.[nodeIdx] <- count
+                Arr.set nLeft nodeIdx start
+                Arr.set nRight nodeIdx (-1)
+                Arr.set nCount nodeIdx count
                 nodeIdx + 1
             else
                 // split at the median of the rectangle centers along the longer axis of this node's rectangle:
                 let last = start + count - 1
                 if rMaxX - rMinX >= rMaxY - rMinY then
                     for i = start to last do
-                        let ii = idx.[i]
-                        keys.[i] <- minX.[ii] + maxX.[ii]
+                        let ii = Arr.get idx i
+                        Arr.set keys i (Arr.get minX ii + Arr.get maxX ii)
                 else
                     for i = start to last do
-                        let ii = idx.[i]
-                        keys.[i] <- minY.[ii] + maxY.[ii]
+                        let ii = Arr.get idx i
+                        Arr.set keys i (Arr.get minY ii + Arr.get maxY ii)
                 let mid = count / 2
                 // only partition around the median, do not sort the whole range:
                 Buffers.selectNth idx keys start last (start + mid)
                 let left = nodeIdx + 1
                 let right = buildNode left start mid (level + 1)
                 let free = buildNode right (start + mid) (count - mid) (level + 1)
-                nLeft.[nodeIdx]  <- left
-                nRight.[nodeIdx] <- right
-                nCount.[nodeIdx] <- 0
+                Arr.set nLeft nodeIdx left
+                Arr.set nRight nodeIdx right
+                Arr.set nCount nodeIdx 0
                 free
 
         b.NodeCount <- if n = 0 then 0 else buildNode 0 0 n 1
@@ -203,21 +203,21 @@ type internal Bvh (leafSize: int) =
             let maxX = b.MaxX
             let maxY = b.MaxY
             let mutable sp = 1
-            stack.[0] <- 0
+            Arr.set stack 0 0
             while sp > 0 do
                 sp <- sp - 1
-                let n = stack.[sp]
-                if BvhUtil.overlaps qMinX qMinY qMaxX qMaxY nMinX.[n] nMinY.[n] nMaxX.[n] nMaxY.[n] then
-                    let count = nCount.[n]
+                let n = Arr.get stack sp
+                if BvhUtil.overlaps qMinX qMinY qMaxX qMaxY (Arr.get nMinX n) (Arr.get nMinY n) (Arr.get nMaxX n) (Arr.get nMaxY n) then
+                    let count = Arr.get nCount n
                     if count > 0 then
-                        let start = nLeft.[n]
+                        let start = Arr.get nLeft n
                         for i = start to start + count - 1 do
-                            let ii = idx.[i]
-                            if BvhUtil.overlaps qMinX qMinY qMaxX qMaxY minX.[ii] minY.[ii] maxX.[ii] maxY.[ii] then
+                            let ii = Arr.get idx i
+                            if BvhUtil.overlaps qMinX qMinY qMaxX qMaxY (Arr.get minX ii) (Arr.get minY ii) (Arr.get maxX ii) (Arr.get maxY ii) then
                                 visit ii
                     else
-                        stack.[sp] <- nLeft.[n]
-                        stack.[sp + 1] <- nRight.[n]
+                        Arr.set stack sp (Arr.get nLeft n)
+                        Arr.set stack (sp + 1) (Arr.get nRight n)
                         sp <- sp + 2
 
     /// <summary>Calls the visitor with every pair of items whose rectangles are closer to each other than
@@ -242,49 +242,49 @@ type internal Bvh (leafSize: int) =
             let maxX = b.MaxX
             let maxY = b.MaxY
             let mutable sp = 1
-            stackA.[0] <- 0
-            stackB.[0] <- 0
+            Arr.set stackA 0 0
+            Arr.set stackB 0 0
             while sp > 0 do
                 sp <- sp - 1
-                let na = stackA.[sp]
-                let nb = stackB.[sp]
+                let na = Arr.get stackA sp
+                let nb = Arr.get stackB sp
                 if na = nb then // a self pair: every unordered pair below this node exactly once
-                    let count = nCount.[na]
+                    let count = Arr.get nCount na
                     if count > 0 then
-                        let start = nLeft.[na]
+                        let start = Arr.get nLeft na
                         let last = start + count - 1
                         for i = start to last do
-                            let ii = idx.[i]
+                            let ii = Arr.get idx i
                             for j = i + 1 to last do
-                                let jj = idx.[j]
-                                if BvhUtil.sqRectDist minX.[ii] minY.[ii] maxX.[ii] maxY.[ii] minX.[jj] minY.[jj] maxX.[jj] maxY.[jj] <= sqMaxDist then
+                                let jj = Arr.get idx j
+                                if BvhUtil.sqRectDist (Arr.get minX ii) (Arr.get minY ii) (Arr.get maxX ii) (Arr.get maxY ii) (Arr.get minX jj) (Arr.get minY jj) (Arr.get maxX jj) (Arr.get maxY jj) <= sqMaxDist then
                                     if ii < jj then visit ii jj else visit jj ii
                     else
-                        let l = nLeft.[na]
-                        let r = nRight.[na]
-                        stackA.[sp] <- l ; stackB.[sp] <- l
-                        stackA.[sp + 1] <- r ; stackB.[sp + 1] <- r
-                        stackA.[sp + 2] <- l ; stackB.[sp + 2] <- r
+                        let l = Arr.get nLeft na
+                        let r = Arr.get nRight na
+                        Arr.set stackA sp l; Arr.set stackB sp l
+                        Arr.set stackA (sp + 1) r; Arr.set stackB (sp + 1) r
+                        Arr.set stackA (sp + 2) l; Arr.set stackB (sp + 2) r
                         sp <- sp + 3
-                elif BvhUtil.sqRectDist nMinX.[na] nMinY.[na] nMaxX.[na] nMaxY.[na] nMinX.[nb] nMinY.[nb] nMaxX.[nb] nMaxY.[nb] <= sqMaxDist then
-                    let countA = nCount.[na]
-                    let countB = nCount.[nb]
+                elif BvhUtil.sqRectDist (Arr.get nMinX na) (Arr.get nMinY na) (Arr.get nMaxX na) (Arr.get nMaxY na) (Arr.get nMinX nb) (Arr.get nMinY nb) (Arr.get nMaxX nb) (Arr.get nMaxY nb) <= sqMaxDist then
+                    let countA = Arr.get nCount na
+                    let countB = Arr.get nCount nb
                     if countA > 0 && countB > 0 then // both leaves
-                        let startA = nLeft.[na]
-                        let startB = nLeft.[nb]
+                        let startA = Arr.get nLeft na
+                        let startB = Arr.get nLeft nb
                         for i = startA to startA + countA - 1 do
-                            let ii = idx.[i]
+                            let ii = Arr.get idx i
                             for j = startB to startB + countB - 1 do
-                                let jj = idx.[j]
-                                if BvhUtil.sqRectDist minX.[ii] minY.[ii] maxX.[ii] maxY.[ii] minX.[jj] minY.[jj] maxX.[jj] maxY.[jj] <= sqMaxDist then
+                                let jj = Arr.get idx j
+                                if BvhUtil.sqRectDist (Arr.get minX ii) (Arr.get minY ii) (Arr.get maxX ii) (Arr.get maxY ii) (Arr.get minX jj) (Arr.get minY jj) (Arr.get maxX jj) (Arr.get maxY jj) <= sqMaxDist then
                                     if ii < jj then visit ii jj else visit jj ii
                     elif countA = 0 then // descend into a
-                        stackA.[sp] <- nLeft.[na] ; stackB.[sp] <- nb
-                        stackA.[sp + 1] <- nRight.[na] ; stackB.[sp + 1] <- nb
+                        Arr.set stackA sp (Arr.get nLeft na); Arr.set stackB sp nb
+                        Arr.set stackA (sp + 1) (Arr.get nRight na); Arr.set stackB (sp + 1) nb
                         sp <- sp + 2
                     else // a is a leaf, descend into b
-                        stackA.[sp] <- na ; stackB.[sp] <- nLeft.[nb]
-                        stackA.[sp + 1] <- na ; stackB.[sp + 1] <- nRight.[nb]
+                        Arr.set stackA sp na; Arr.set stackB sp (Arr.get nLeft nb)
+                        Arr.set stackA (sp + 1) na; Arr.set stackB (sp + 1) (Arr.get nRight nb)
                         sp <- sp + 2
 
     /// <summary>Calls the visitor with every pair of an item of this tree and an item of the other tree whose
@@ -316,31 +316,31 @@ type internal Bvh (leafSize: int) =
             let bCount = other.NodeItemCount
             let bIdx = other.ItemIndices
             let mutable sp = 1
-            stackA.[0] <- 0
-            stackB.[0] <- 0
+            Arr.set stackA 0 0
+            Arr.set stackB 0 0
             while sp > 0 do
                 sp <- sp - 1
-                let na = stackA.[sp]
-                let nb = stackB.[sp]
-                if BvhUtil.sqRectDist aMinX.[na] aMinY.[na] aMaxX.[na] aMaxY.[na] bMinX.[nb] bMinY.[nb] bMaxX.[nb] bMaxY.[nb] <= sqMaxDist then
-                    let countA = aCount.[na]
-                    let countB = bCount.[nb]
+                let na = Arr.get stackA sp
+                let nb = Arr.get stackB sp
+                if BvhUtil.sqRectDist (Arr.get aMinX na) (Arr.get aMinY na) (Arr.get aMaxX na) (Arr.get aMaxY na) (Arr.get bMinX nb) (Arr.get bMinY nb) (Arr.get bMaxX nb) (Arr.get bMaxY nb) <= sqMaxDist then
+                    let countA = Arr.get aCount na
+                    let countB = Arr.get bCount nb
                     if countA > 0 && countB > 0 then // both leaves
-                        let startA = aLeft.[na]
-                        let startB = bLeft.[nb]
+                        let startA = Arr.get aLeft na
+                        let startB = Arr.get bLeft nb
                         for i = startA to startA + countA - 1 do
-                            let ii = aIdx.[i]
+                            let ii = Arr.get aIdx i
                             for j = startB to startB + countB - 1 do
-                                let jj = bIdx.[j]
-                                if BvhUtil.sqRectDist b.MinX.[ii] b.MinY.[ii] b.MaxX.[ii] b.MaxY.[ii] other.MinX.[jj] other.MinY.[jj] other.MaxX.[jj] other.MaxY.[jj] <= sqMaxDist then
+                                let jj = Arr.get bIdx j
+                                if BvhUtil.sqRectDist (Arr.get b.MinX ii) (Arr.get b.MinY ii) (Arr.get b.MaxX ii) (Arr.get b.MaxY ii) (Arr.get other.MinX jj) (Arr.get other.MinY jj) (Arr.get other.MaxX jj) (Arr.get other.MaxY jj) <= sqMaxDist then
                                     visit ii jj
                     elif countA = 0 then // descend into a
-                        stackA.[sp] <- aLeft.[na] ; stackB.[sp] <- nb
-                        stackA.[sp + 1] <- aRight.[na] ; stackB.[sp + 1] <- nb
+                        Arr.set stackA sp (Arr.get aLeft na); Arr.set stackB sp nb
+                        Arr.set stackA (sp + 1) (Arr.get aRight na); Arr.set stackB (sp + 1) nb
                         sp <- sp + 2
                     else // a is a leaf, descend into b
-                        stackA.[sp] <- na ; stackB.[sp] <- bLeft.[nb]
-                        stackA.[sp + 1] <- na ; stackB.[sp + 1] <- bRight.[nb]
+                        Arr.set stackA sp na; Arr.set stackB sp (Arr.get bLeft nb)
+                        Arr.set stackA (sp + 1) na; Arr.set stackB (sp + 1) (Arr.get bRight nb)
                         sp <- sp + 2
 
     /// The ids of all items whose rectangle overlaps or touches the query rectangle, in undefined order.

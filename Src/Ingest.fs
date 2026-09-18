@@ -49,21 +49,21 @@ module internal Ingest =
                 let pi = s.PathCount
                 s.PathStart <- Buffers.ensureInt s.PathStart pi (pi + 2)
                 s.PathGroup <- Buffers.ensureInt s.PathGroup pi (pi + 1)
-                s.PathStart.[pi] <- startV
-                s.PathGroup.[pi] <- group
+                Arr.set s.PathStart pi startV
+                Arr.set s.PathGroup pi group
                 s.PathCount <- pi + 1
                 let si = s.SegCount
                 s.SegA     <- Buffers.ensureInt s.SegA     si (si + count)
                 s.SegB     <- Buffers.ensureInt s.SegB     si (si + count)
                 s.SegGroup <- Buffers.ensureInt s.SegGroup si (si + count)
                 for k = 0 to count - 1 do
-                    s.SegA.[si + k]     <- startV + k
-                    s.SegB.[si + k]     <- startV + (if k = count - 1 then 0 else k + 1)
-                    s.SegGroup.[si + k] <- group
+                    Arr.set s.SegA (si + k) (startV + k)
+                    Arr.set s.SegB (si + k) (startV + (if k = count - 1 then 0 else k + 1))
+                    Arr.set s.SegGroup (si + k) group
                 s.SegCount <- si + count
 
     /// Closes the path table after all Shapes were added.
     let finish (s: EngineState) : unit =
         s.PathStart <- Buffers.ensureInt s.PathStart s.PathCount (s.PathCount + 1)
-        s.PathStart.[s.PathCount] <- s.VertexCount
+        Arr.set s.PathStart s.PathCount s.VertexCount
         s.InputVertexCount <- s.VertexCount

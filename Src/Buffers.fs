@@ -37,15 +37,15 @@ module internal Buffers =
     /// Not stable, items comparing equal may end up in any order.
     let inline sortIndices (idx: int[]) (first: int) (last: int) ([<InlineIfLambda>] less: int -> int -> bool) : unit =
         let inline swap i j =
-            let t = idx.[i] in idx.[i] <- idx.[j] ; idx.[j] <- t
+            let t = Arr.get idx i in Arr.set idx i (Arr.get idx j); Arr.set idx j t
         let inline insertionSort lo hi =
             for i = lo + 1 to hi do
-                let v = idx.[i]
+                let v = Arr.get idx i
                 let mutable j = i - 1
-                while j >= lo && less v idx.[j] do
-                    idx.[j + 1] <- idx.[j]
+                while j >= lo && less v (Arr.get idx j) do
+                    Arr.set idx (j + 1) (Arr.get idx j)
                     j <- j - 1
-                idx.[j + 1] <- v
+                Arr.set idx (j + 1) v
         if last - first < 16 then
             // the common case of a short range needs no closure for the recursion below:
             insertionSort first last
@@ -56,16 +56,16 @@ module internal Buffers =
                 while hi - lo > 16 do
                     // put the median of first, middle and last item into the middle, which also places sentinels at both ends:
                     let mid = lo + (hi - lo) / 2
-                    if less idx.[mid] idx.[lo]  then swap mid lo
-                    if less idx.[hi]  idx.[lo]  then swap hi  lo
-                    if less idx.[hi]  idx.[mid] then swap hi  mid
-                    let pivot = idx.[mid]
+                    if less (Arr.get idx mid) (Arr.get idx lo)  then swap mid lo
+                    if less (Arr.get idx hi)  (Arr.get idx lo)  then swap hi  lo
+                    if less (Arr.get idx hi)  (Arr.get idx mid) then swap hi  mid
+                    let pivot = Arr.get idx mid
                     // Hoare partition:
                     let mutable i = lo
                     let mutable j = hi
                     while i <= j do
-                        while less idx.[i] pivot do i <- i + 1
-                        while less pivot idx.[j] do j <- j - 1
+                        while less (Arr.get idx i) pivot do i <- i + 1
+                        while less pivot (Arr.get idx j) do j <- j - 1
                         if i <= j then
                             swap i j
                             i <- i + 1
@@ -83,7 +83,7 @@ module internal Buffers =
     /// Sorts idx.[first..last] in place by ascending key, where the keys array is indexed by the item ids stored in idx.
     /// Not inline, so that it can be called from the tests. Inside the library use sortIndices directly.
     let sortByKeys (idx: int[]) (first: int) (last: int) (keys: float[]) : unit =
-        sortIndices idx first last (fun a b -> keys.[a] < keys.[b])
+        sortIndices idx first last (fun a b -> Arr.get keys a < Arr.get keys b)
 
     /// Reorders idx.[first..last], together with the parallel keys, such that position k holds the item
     /// that a full sort by key would put there. All items before k have a smaller or equal key,
@@ -94,17 +94,17 @@ module internal Buffers =
     /// Ported from Euclid.BVH.
     let selectNth (idx: int[]) (keys: float[]) (first: int) (last: int) (k: int) : unit =
         let inline swap i j =
-            let ti = idx.[i] in idx.[i] <- idx.[j] ; idx.[j] <- ti
-            let tk = keys.[i] in keys.[i] <- keys.[j] ; keys.[j] <- tk
+            let ti = Arr.get idx i in Arr.set idx i (Arr.get idx j); Arr.set idx j ti
+            let tk = Arr.get keys i in Arr.set keys i (Arr.get keys j); Arr.set keys j tk
         let mutable lo = first
         let mutable hi = last
         let mutable go = true
         while go && lo < hi do
             // the median of the first, middle and last key as the pivot,
             // so that sorted or reversed input does not degenerate to quadratic time:
-            let a = keys.[lo]
-            let b = keys.[lo + (hi - lo) / 2]
-            let c = keys.[hi]
+            let a = Arr.get keys lo
+            let b = Arr.get keys (lo + (hi - lo) / 2)
+            let c = Arr.get keys hi
             let pivot =
                 if a < b then (if b < c then b elif a < c then c else a)
                 else          (if a < c then a elif b < c then c else b)
@@ -114,7 +114,7 @@ module internal Buffers =
             let mutable gt = hi // keys.[gt+1 .. hi  ] are bigger than the pivot
             let mutable i  = lo // keys.[lt   .. i-1 ] are equal to the pivot
             while i <= gt do
-                let v = keys.[i]
+                let v = Arr.get keys i
                 if   v < pivot then swap i lt ; lt <- lt + 1 ; i <- i + 1
                 elif v > pivot then swap i gt ; gt <- gt - 1 // i is not advanced, the swapped in key is still unseen
                 else                            i <- i + 1

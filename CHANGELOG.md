@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Engine tests against a point in region oracle and area identities on random, self intersecting and degenerate input.
 - `Test/Scripts/console/union-polysXY.fsx`: the noisy polysXY dataset from Klip, self unioned at ten scales and compared against Klip and Clipper2.
 
+### Changed
+- The engine indexes its flat arrays through `Arr.get` and `Arr.set`, which emit a plain JavaScript index under Fable instead of the bounds checked library call. Seven times faster under Node on the polysXY dataset, no change on .NET.
+
 ### Fixed
 - The seed ray cast of the winding propagation counts crossings with the graph edges instead of the input segments, so a segment within tolerance of the seed vertex no longer shifts the winding numbers of the whole component and turns the result inside out.
 

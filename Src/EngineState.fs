@@ -146,16 +146,16 @@ type internal EngineState (tolerance: float) =
     member s.AddVertex (x: float, y: float) : int =
         let i = s.VertexCount
         s.XY <- Buffers.ensureFloat s.XY (2 * i) (2 * i + 2)
-        s.XY.[2 * i] <- x
-        s.XY.[2 * i + 1] <- y
+        Arr.set s.XY (2 * i) x
+        Arr.set s.XY (2 * i + 1) y
         s.VertexCount <- i + 1
         i
 
     /// The X coordinate of a vertex.
-    member inline s.X (v: int) : float = s.XY.[2 * v]
+    member inline s.X (v: int) : float = Arr.get s.XY (2 * v)
 
     /// The Y coordinate of a vertex.
-    member inline s.Y (v: int) : float = s.XY.[2 * v + 1]
+    member inline s.Y (v: int) : float = Arr.get s.XY (2 * v + 1)
 
     /// Appends a split event.
     member s.AddEvent (seg: int, t: float, vert: int) : unit =
@@ -163,9 +163,9 @@ type internal EngineState (tolerance: float) =
         s.EvSeg  <- Buffers.ensureInt   s.EvSeg  i (i + 1)
         s.EvT    <- Buffers.ensureFloat s.EvT    i (i + 1)
         s.EvVert <- Buffers.ensureInt   s.EvVert i (i + 1)
-        s.EvSeg.[i]  <- seg
-        s.EvT.[i]    <- t
-        s.EvVert.[i] <- vert
+        Arr.set s.EvSeg i seg
+        Arr.set s.EvT i t
+        Arr.set s.EvVert i vert
         s.EvCount <- i + 1
 
     /// Appends a sub segment.
@@ -174,7 +174,7 @@ type internal EngineState (tolerance: float) =
         s.EFrom  <- Buffers.ensureInt s.EFrom  i (i + 1)
         s.ETo    <- Buffers.ensureInt s.ETo    i (i + 1)
         s.EGroup <- Buffers.ensureInt s.EGroup i (i + 1)
-        s.EFrom.[i]  <- from
-        s.ETo.[i]    <- to'
-        s.EGroup.[i] <- group
+        Arr.set s.EFrom i from
+        Arr.set s.ETo i to'
+        Arr.set s.EGroup i group
         s.ECount <- i + 1

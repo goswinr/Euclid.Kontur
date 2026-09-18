@@ -10,6 +10,9 @@ Read `DESIGN.md` first: it holds the reviewed design, the pipeline and the reaso
   4 spaces, XML docstrings on every public member, errors through `Euclid.EuclidErrors.fail`.
 - Hot paths use raw `float[]` and `int[]` with a separate count, never `ResizeArray`, tuples or struct records.
   Fable compiles raw numeric arrays to typed arrays.
+- Index those arrays with `Arr.get arr i` and `Arr.set arr i v` from `Src/Arr.fs`, never with `arr.[i]`.
+  Fable compiles `arr.[i]` into a bounds checked library call that dominated the profile under Node,
+  see DESIGN.md section 6. `ResizeArray` indexing outside the hot paths keeps the plain indexer.
 - No `int64`, `Span`, `stackalloc`, `ArrayPool` or `Array.Sort(keys, items)`. They are not available on Fable or net472.
 - Visitor callbacks are `inline` members with `[<InlineIfLambda>]` parameters. State a visitor needs lives in
   fields, not in captured `let mutable` locals.

@@ -35,10 +35,10 @@ module internal Intersect =
         let tol = s.Tolerance
         bvh.Reset s.SegCount
         for i = 0 to s.SegCount - 1 do
-            let ax = s.X s.SegA.[i]
-            let ay = s.Y s.SegA.[i]
-            let bx = s.X s.SegB.[i]
-            let by = s.Y s.SegB.[i]
+            let ax = s.X (Arr.get s.SegA i)
+            let ay = s.Y (Arr.get s.SegA i)
+            let bx = s.X (Arr.get s.SegB i)
+            let by = s.Y (Arr.get s.SegB i)
             bvh.SetRect (i, (min ax bx) - tol, (min ay by) - tol, (max ax bx) + tol, (max ay by) + tol)
         bvh.Build ()
 
@@ -61,10 +61,10 @@ module internal Intersect =
     /// Endpoints on the other segment come first, so that T junctions and collinear overlaps reuse existing vertices.
     /// A proper crossing farther than the tolerance from all four ends creates one new vertex shared by both segments.
     let private intersectPair (s: EngineState) (sqTol: float) (p: int) (q: int) : unit =
-        let a = s.SegA.[p]
-        let b = s.SegB.[p]
-        let c = s.SegA.[q]
-        let d = s.SegB.[q]
+        let a = Arr.get s.SegA p
+        let b = Arr.get s.SegB p
+        let c = Arr.get s.SegA q
+        let d = Arr.get s.SegB q
         endpointOnSegment s sqTol p a b c
         endpointOnSegment s sqTol p a b d
         endpointOnSegment s sqTol q c d a
@@ -113,32 +113,32 @@ module internal Intersect =
         let evT = s.EvT
         // counting sort of the events by segment:
         for i = 0 to segCount do
-            evStart.[i] <- 0
+            Arr.set evStart i 0
         for e = 0 to evCount - 1 do
-            evStart.[evSeg.[e] + 1] <- evStart.[evSeg.[e] + 1] + 1
+            Arr.set evStart (Arr.get evSeg e + 1) (Arr.get evStart (Arr.get evSeg e + 1) + 1)
         for i = 1 to segCount do
-            evStart.[i] <- evStart.[i] + evStart.[i - 1]
+            Arr.set evStart i (Arr.get evStart i + Arr.get evStart (i - 1))
         for e = 0 to evCount - 1 do
-            let seg = evSeg.[e]
-            evOrder.[evStart.[seg]] <- e
-            evStart.[seg] <- evStart.[seg] + 1
+            let seg = Arr.get evSeg e
+            Arr.set evOrder (Arr.get evStart seg) e
+            Arr.set evStart seg (Arr.get evStart seg + 1)
         for i = segCount downto 1 do
-            evStart.[i] <- evStart.[i - 1]
-        evStart.[0] <- 0
+            Arr.set evStart i (Arr.get evStart (i - 1))
+        Arr.set evStart 0 0
         // sort the events of each segment by parameter and emit the sub segments:
         s.ECount <- 0
         for seg = 0 to segCount - 1 do
-            let first = evStart.[seg]
-            let last = evStart.[seg + 1] - 1
+            let first = Arr.get evStart seg
+            let last = Arr.get evStart (seg + 1) - 1
             if last > first then
-                Buffers.sortIndices evOrder first last (fun e1 e2 -> evT.[e1] < evT.[e2])
-            let group = s.SegGroup.[seg]
-            let mutable prev = s.SegA.[seg]
+                Buffers.sortIndices evOrder first last (fun e1 e2 -> Arr.get evT e1 < Arr.get evT e2)
+            let group = Arr.get s.SegGroup seg
+            let mutable prev = Arr.get s.SegA seg
             for i = first to last do
-                let v = s.EvVert.[evOrder.[i]]
+                let v = Arr.get s.EvVert (Arr.get evOrder i)
                 if v <> prev then
                     s.AddSubSegment (prev, v, group)
                     prev <- v
-            let b = s.SegB.[seg]
+            let b = Arr.get s.SegB seg
             if b <> prev then
                 s.AddSubSegment (prev, b, group)
