@@ -326,6 +326,34 @@ let tests =
             assertThat (BoolOps.simplify tiny).IsEmpty (tag "smaller than the tolerance vanishes" >> isTrue)
         )
 
+        test ("a segment within tolerance of the seed vertex does not flip the component", fun _ ->
+            // The leftmost vertex L of the triangle seeds the winding propagation. The first vertex of the quad
+            // is within tolerance of L and its first edge descends to the right, so the input segment crosses
+            // the ray from L to +X just right of L, while in the graph that edge leaves L itself.
+            // Counting it shifted every winding number of the component by one and inverted the result.
+            let check (dx: float) (dy: float) (ux: float) (uy: float) =
+                let tri  = poly [ (dx, dy); (dx + 10.0, dy - 5.0); (dx + 10.0, dy + 5.0) ]
+                let quad = poly [ (dx + ux, dy + uy); (dx + 5.0, dy - 1.0); (dx + 5.0, dy + 3.0); (dx + 1.0, dy + 3.0) ]
+                let r = BoolOps.simplify (Shape.create ([ tri; quad ], FillRule.NonZero))
+                checkResult r
+                assertThat r.PathCount (tag $"one contour at offset {dx}, {dy}" >> isEqualTo 1)
+                assertThat (area r) (tag $"union area at offset {dx}, {dy}" >> isCloseTo Accuracy.medium 57.25)
+            check 0.0 0.0 5e-7 5e-7      // the quad's first vertex is merged into L
+            check 0.0 0.0 -1e-7 5e-7     // the same, the merged vertex lies left of L
+            check 0.0 0.0 0.0 0.0        // control: the vertex is L itself
+            check 1e5 1e5 5e-7 5e-7      // large coordinates
+            check -1e3 2e3 -1e-7 5e-7
+            // the edge only passes within tolerance of L, no shared vertex:
+            let tri  = poly [ (0.0, 0.0); (10.0, -5.0); (10.0, 5.0) ]
+            let quad = poly [ (-0.5, 5e-7 + 5e-8); (5.0, -5e-7); (5.0, 3.0); (1.0, 3.0) ]
+            let a = Shape.ofPolyline tri
+            let b = Shape.ofPolyline quad
+            let r = BoolOps.union a b
+            oracle (Random 17) a b ClipType.Union r
+            assertThat r.PathCount (tag "passing edge gives one contour" >> isEqualTo 1)
+            assertThat (area r) (tag "passing edge gives a positive area" >> isGreaterThan 57.25)
+        )
+
         test ("propagated winding numbers agree with per edge ray casting on clean input", fun _ ->
             let rand = Random 15
             let engine = BoolOpsEngine 1e-6

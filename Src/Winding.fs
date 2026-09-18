@@ -9,25 +9,56 @@ open System
 /// The per edge ray casting method is kept as an oracle for tests and debugging.
 module internal Winding =
 
-    /// <summary>The exact winding numbers of subject and clip at the point (px, py), by counting the crossings
-    /// of the ray from that point to +X with the input segments. The half open rule on Y
-    /// (a segment counts if exactly one of its ends has Y at or below the ray) makes every crossing count once,
-    /// also through vertices, and never counts horizontal segments. +1 for a segment going up, -1 going down.
-    /// The result is left in RayS and RayC.</summary>
-    let windingAt (s: EngineState) (px: float) (py: float) : unit =
-        s.RayS <- 0
-        s.RayC <- 0
-        s.SegBvh.VisitInRect (px, py, Double.PositiveInfinity, py, fun seg ->
-            let x0 = s.X s.SegA.[seg]
-            let y0 = s.Y s.SegA.[seg]
-            let x1 = s.X s.SegB.[seg]
-            let y1 = s.Y s.SegB.[seg]
+    /// <summary>Adds the crossing of the graph edge e with the ray from the seed vertex to +X to RayS and RayC.
+    /// The half open rule on Y (an edge counts if exactly one of its ends has Y at or below the ray) makes every
+    /// crossing count once, also through vertices, and never counts horizontal edges. An edge whose canonical
+    /// direction goes up adds its deltas, one going down subtracts them, which is the winding contribution of the
+    /// input paths merged into the edge. Edges incident to the seed cross the ray at the seed itself and are skipped.</summary>
+    let inline private countEdge (s: EngineState) (seed: int) (px: float) (py: float) (e: int) : unit =
+        let a = s.GA.[e]
+        let b = s.GB.[e]
+        if a <> seed && b <> seed then
+            let y0 = s.Y a
+            let y1 = s.Y b
             if (y0 <= py) <> (y1 <= py) then
-                let xc = x0 + (py - y0) * (x1 - x0) / (y1 - y0)
+                let x0 = s.X a
+                let xc = x0 + (py - y0) * (s.X b - x0) / (y1 - y0)
                 if xc > px then
                     let d = if y1 > y0 then 1 else -1
-                    if s.SegGroup.[seg] = 0 then s.RayS <- s.RayS + d
-                    else                         s.RayC <- s.RayC + d)
+                    s.RayS <- s.RayS + d * s.GDeltaS.[e]
+                    s.RayC <- s.RayC + d * s.GDeltaC.[e]
+
+    /// Builds the tree over the graph edges, for the seed ray casts of the second component onwards.
+    let private buildEdgeTree (s: EngineState) : unit =
+        let bvh = s.EdgeBvh
+        let g = s.GCount
+        bvh.Reset g
+        for e = 0 to g - 1 do
+            let ax = s.X s.GA.[e]
+            let ay = s.Y s.GA.[e]
+            let bx = s.X s.GB.[e]
+            let by = s.Y s.GB.[e]
+            bvh.SetRect (e, min ax bx, min ay by, max ax bx, max ay by)
+        bvh.Build ()
+
+    /// <summary>The winding numbers of subject and clip in the wedge just above the +X direction at the seed vertex,
+    /// by counting the crossings of the ray from the seed to +X with the graph edges, see countEdge.
+    /// The graph edges, not the input segments, so that the count agrees with the rings of the graph: a segment
+    /// passing within tolerance of the seed, or ending at a vertex merged into it, is a graph edge through the seed
+    /// and must not count as a crossing next to it. The ray starts at the seed itself, since every edge through the
+    /// seed is skipped by its vertex ids and every other edge is farther than the tolerance from the seed.
+    /// The first component scans all edges, from the second component on the tree over the edges is used.
+    /// The result is left in RayS and RayC.</summary>
+    let private seedWinding (s: EngineState) (seed: int) (useTree: bool) : unit =
+        s.RayS <- 0
+        s.RayC <- 0
+        let px = s.X seed
+        let py = s.Y seed
+        if useTree then
+            s.EdgeBvh.VisitInRect (px, py, Double.PositiveInfinity, py, fun e -> countEdge s seed px py e)
+        else
+            for e = 0 to s.GCount - 1 do
+                countEdge s seed px py e
 
     /// <summary>Assigns the winding numbers of all edges around vertex v, given the winding of one wedge.
     /// The wedge counter clockwise after the half edge at ring position startPos has the winding (wS, wC).
@@ -62,11 +93,10 @@ module internal Winding =
     /// <summary>Computes the winding numbers on the left side of every graph edge by propagation.
     /// Vertices are visited in order of increasing X. The first unvisited vertex is the leftmost of its component,
     /// so every edge of the component leaves it towards +X or straight up or down. The winding of the wedge that
-    /// contains the direction just above +X is found by one ray cast from a point a hair to the right of the vertex:
-    /// segments through the vertex cross the ray at the vertex itself, left of the start, so they are excluded
-    /// exactly, and every other segment is counted with the exact half open rule. The half open rule puts a point
-    /// on a horizontal segment on that segment's upper side, which is why the seed wedge is the one above a
-    /// horizontal edge leaving the vertex to the right, if there is one.
+    /// contains the direction just above +X is found by one ray cast from the vertex against the graph edges,
+    /// see seedWinding: edges through the vertex are skipped by their vertex ids, every other edge is counted with
+    /// the exact half open rule. The half open rule puts a point on a horizontal edge on that edge's upper side,
+    /// which is why the seed wedge is the one above a horizontal edge leaving the vertex to the right, if there is one.
     /// From there a breadth first walk assigns every ring of the component. Each edge is assigned by the first of
     /// its two vertices to be processed, the second one produces the same value because the deltas sum to zero.</summary>
     let propagate (s: EngineState) : unit =
@@ -87,16 +117,16 @@ module internal Winding =
         Buffers.sortIndices order 0 (v - 1) (fun a b -> xy.[2 * a] < xy.[2 * b])
         
         let mutable queueStart = 0
+        let mutable components = 0
         s.QueueEnd <- 0
         for i = 0 to v - 1 do
             let seed = order.[i]
             if vertDone.[seed] = 0 && s.VHalfStart.[seed + 1] > s.VHalfStart.[seed] then
                 // the leftmost vertex of a new component: all its edges point to +X or straight up or down
                 vertDone.[seed] <- 1
-                let sx = s.X seed
-                let sy = s.Y seed
-                let hair = 1e-9 * (1.0 + abs sx + abs sy)
-                windingAt s (sx + hair) sy
+                components <- components + 1
+                if components = 2 then buildEdgeTree s // one scan over all edges is cheaper than the tree for a single component
+                seedWinding s seed (components > 1)
                 // the wedge containing the direction just above +X (pseudo angle 0) is the wedge after the last
                 // half edge with pseudo angle 0.0 (an edge going exactly to +X), else the wedge after the last
                 // half edge of the ring, whose angle is below 4.0 (cyclically just before 0):

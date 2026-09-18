@@ -101,6 +101,9 @@ type internal EngineState (tolerance: float) =
 
     // ---------------------- phase 6, winding ----------------------
 
+    /// The tree over the graph edges, for the seed ray casts. Built only when the graph has more than one component.
+    member val EdgeBvh : Bvh = Bvh 4 with get
+
     /// Scratch: the subject winding number accumulated by the current ray cast.
     member val RayS : int = 0 with get, set
     /// Scratch: the clip winding number accumulated by the current ray cast.

@@ -322,15 +322,23 @@ vertex is the leftmost of its component, so every edge of the component leaves i
 `+x` or straight up or down, and the wedge containing the direction just above `+x` is known:
 it is the wedge after the last half edge with pseudo angle `0.0` (an edge going exactly to
 `+x`), else the wedge after the last half edge of the ring. Its winding is found by one ray
-cast from a point a hair (1e-9 relative) to the right of the vertex, going to `+x`, counting
-crossings with the **input** segments through the segment BVH with the exact half open rule
-(`y0 <= py` differs from `y1 <= py`), `+1` for a segment going up, `-1` going down.
-Every segment through the vertex crosses the ray at the vertex itself, left of the start, so
-it is excluded exactly; every other segment is counted exactly. The half open rule treats a
-point on a horizontal segment as lying on that segment's upper side, which is why the seed
-wedge is the one above a horizontal edge leaving to the right.
+cast from the vertex going to `+x`, counting crossings with the **graph edges** with the exact
+half open rule (`y0 <= py` differs from `y1 <= py`): an edge whose canonical direction goes up
+adds its winding deltas, one going down subtracts them. Edges incident to the seed are skipped
+by their vertex ids, every other edge is farther than the tolerance from the seed and is counted
+exactly. The half open rule treats a point on a horizontal edge as lying on that edge's upper
+side, which is why the seed wedge is the one above a horizontal edge leaving to the right.
+The first component scans all graph edges, which is cheaper than building a tree; from the
+second component on a BVH over the graph edges answers the ray queries.
 
-Two earlier variants were tried and rejected, and the reasons matter for anyone revisiting this:
+Three earlier variants were tried and rejected, and the reasons matter for anyone revisiting this:
+
+- A ray from a hair (1e-9 relative) right of the seed against the **input** segments: a segment
+  passing within tolerance of the seed, or ending at a vertex merged into the seed, is a graph
+  edge through the seed, but the input segment crosses the ray next to the seed and was counted.
+  That shifted every winding number of the component and turned a union inside out. Found on the
+  `Test/Scripts/data/polysXY.json` dataset at small scales, where the noise of the data falls
+  below the tolerance. The graph edges are the only geometry the rings agree with.
 
 - A ray from the midpoint of every edge (per edge ray casting): a vertex snapped onto a segment
   bends the sub edge away from its parent by up to the tolerance, and the midpoint can fall into

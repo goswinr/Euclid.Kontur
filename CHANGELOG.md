@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The pipeline of DESIGN.md: ingest, intersect with the segment tree, split, cluster, graph, winding by propagation seeded with one ray cast per component, select and link.
 - `Bvh.VisitClosePairsWith`: a dual tree traversal between two trees.
 - Engine tests against a point in region oracle and area identities on random, self intersecting and degenerate input.
+- `Test/Scripts/console/union-polysXY.fsx`: the noisy polysXY dataset from Klip, self unioned at ten scales and compared against Klip and Clipper2.
+
+### Fixed
+- The seed ray cast of the winding propagation counts crossings with the graph edges instead of the input segments, so a segment within tolerance of the seed vertex no longer shifts the winding numbers of the whole component and turns the result inside out.
 
 ## [0.0.1] - 2026-09-17
 ### Added
