@@ -1,3 +1,5 @@
+![Logo](https://raw.githubusercontent.com/goswinr/BoolOps/main/Docs/img/logo128.png)
+
 # BoolOps
 
 [![BoolOps on nuget.org](https://img.shields.io/nuget/v/BoolOps)](https://www.nuget.org/packages/BoolOps/)

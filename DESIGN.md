@@ -491,7 +491,7 @@ and the residual crossings described in section 2 are not resolved.
 ## 10. Project layout
 
 ```
-BoolOps.fsproj              net6.0;net472, Fable content, references Euclid only
+Src/BoolOps.fsproj          net6.0;net472, Fable content, references Euclid only
 Src/FillRule.fs             FillRule, ClipType, isInside, combine
 Src/Shape.fs                Shape
 Src/Buffers.fs              ensureCapacity helpers, in place sorts on parallel arrays

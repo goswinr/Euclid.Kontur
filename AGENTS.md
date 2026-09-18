@@ -24,6 +24,6 @@ asynchronously, so `dotnet` may not be on `PATH` in the first minute. Wait and r
 
 ## CHANGELOG.md must not use wrapped bullets
 
-`BoolOps.fsproj` derives the package version from `CHANGELOG.md` with `Ionide.KeepAChangelog.Tasks` 0.3.3.
+`Src/BoolOps.fsproj` derives the package version from `CHANGELOG.md` with `Ionide.KeepAChangelog.Tasks` 0.3.3.
 Its parser throws on a bullet that wraps onto an indented continuation line, and that failure aborts the
 whole build. Keep one bullet on one line, however long, and use nested `- ` sub-bullets for structure.

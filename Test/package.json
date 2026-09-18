@@ -2,7 +2,7 @@
   "type": "module",
   "scripts": {
     "checkTS": "tsc",
-    "buildTS": "dotnet fable ../BoolOps.fsproj --lang typescript --outDir ./_ts --configuration Release --run npm run checkTS",
+    "buildTS": "dotnet fable ../Src/BoolOps.fsproj --lang typescript --outDir ./_ts --configuration Release --run npm run checkTS",
     "testJS": "dotnet fable --outDir dist/testsRelease --noCache --configuration Release --runScript",
     "testDb": "dotnet fable --outDir dist/testsDebug --noCache --configuration Debug --runScript",
     "test": "dotnet tool restore && npm run testJS && npm run testDb && npm run buildTS"
