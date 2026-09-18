@@ -65,7 +65,7 @@ dotnet restore
 echo "SessionStart: restoring .NET local tools ..."
 dotnet tool restore
 
-# mocha and typescript for the Fable tests. `npm install` rather than `npm ci`
+# typescript for the Fable tests. `npm install` rather than `npm ci`
 # so that a cached node_modules is reused instead of being wiped.
 if command -v npm > /dev/null 2>&1; then
   echo "SessionStart: installing npm packages for the Fable tests ..."

@@ -1,42 +1,26 @@
 module BoolOps.Tests
-open System
 
-#if FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT
-open Fable.Mocha
-let test x = Mocha.runTests x
-#else
-open Expecto
+open Scriptorium.Quill
+open type Scriptorium.Quill.Runner
+
+#if !FABLE_COMPILER
 open System.Globalization
 open System.Threading
 Thread.CurrentThread.CurrentCulture   <- CultureInfo.GetCultureInfo "en-US" // so that a float never has a comma as decimal separator
 Thread.CurrentThread.CurrentUICulture <- CultureInfo.GetCultureInfo "en-US"
-let mutable cliArgs : string[] = [||]
-let test x = runTestsWithCLIArgs [] cliArgs x
 #endif
 
-let run () =
-    test TestFillRule.tests
-    |||
-    test TestShape.tests
-    |||
-    test TestBuffers.tests
-    |||
-    test TestBvh.tests
-    |||
-    test TestEngine.tests
+/// The geometric tests build trees and graphs of thousands of edges,
+/// so they need much more than the default five seconds per test.
+let private config = timeout 600_000
 
-#if FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT
-#nowarn "20" //The result of this expression has type 'int' and is implicitly ignored.
-run()
-#else
-
+/// runTests returns the exit code on .NET and calls process.exit with it under Node.
 [<EntryPoint>]
-let main (args: string[]) =
-    cliArgs <- args
-    let r = run ()
-    if r = 0 then
-        printfn "All tests passed"
-    else
-        printfn "%d tests failed" r
-    r
-#endif
+let main _ =
+    runTestsWith (config, [
+        TestFillRule.tests
+        TestShape.tests
+        TestBuffers.tests
+        TestBvh.tests
+        TestEngine.tests
+        ])

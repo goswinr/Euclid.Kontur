@@ -3,12 +3,11 @@ module TestEngine
 open System
 open Euclid
 open BoolOps
+open TestUtil
+open Scriptorium.Nib.Assertion
+open type Scriptorium.Quill.Test
 
-#if FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT
-open Fable.Mocha
-#else
-open Expecto
-#endif
+#nowarn "52" // The value has been copied to ensure the original is not mutated by this operation or because the copy is implicit when returning a struct from a member and another member is then accessed
 
 /// A closed Polyline2D from points. The first point is repeated at the end.
 let private poly (pts: (float * float) list) =
@@ -22,22 +21,14 @@ let private poly (pts: (float * float) list) =
 let private square x y size =
     poly [ (x, y); (x + size, y); (x + size, y + size); (x, y + size) ]
 
-let private shape rule (pls: Polyline2D list) = Shape.create (pls, rule)
-
 let private area (s: Shape) = s.SignedArea
-
-let private fails (f: unit -> 'T) =
-    try
-        f () |> ignore
-        false
-    with _ -> true
 
 /// Checks that a result Shape is well formed: closed paths, at least 3 distinct points, Positive rule.
 let private checkResult (r: Shape) =
-    Expect.equal r.FillRule FillRule.Positive "result rule"
+    assertThat r.FillRule (tag "result rule" >> isEqualTo FillRule.Positive)
     for p in r.Paths do
-        Expect.isTrue p.IsClosed "result path is closed"
-        Expect.isTrue (p.PointCount >= 4) "result path has at least 3 distinct points"
+        assertThat p.IsClosed (tag "result path is closed" >> isTrue)
+        assertThat p.PointCount (tag "result path has at least 3 distinct points" >> isGreaterOrEqual 4)
 
 /// A random star shaped simple polygon around (cx, cy), counter clockwise if ccw.
 let private randomStar (rand: Random) cx cy radius corners ccw =
@@ -63,15 +54,16 @@ let private distToEdges (s: Shape) (pt: Pt) =
 /// being inside the result must equal the combination of being inside subject and clip.
 let private oracle (rand: Random) (subject: Shape) (clip: Shape) (op: ClipType) (result: Shape) =
     checkResult result
-    let r = (subject.BoundingRectangle.Union (if clip.IsEmpty then subject.BoundingRectangle else clip.BoundingRectangle)).Expand 2.0
+    let br = subject.BoundingRectangle.Union (if clip.IsEmpty then subject.BoundingRectangle else clip.BoundingRectangle)
+    let r = br.Expand 2.0
     let mutable tested = 0
     for _ in 1 .. 400 do
         let pt = Pt (r.MinX + rand.NextDouble () * r.SizeX, r.MinY + rand.NextDouble () * r.SizeY)
         if distToEdges subject pt > 1e-3 && (clip.IsEmpty || distToEdges clip pt > 1e-3) then
             tested <- tested + 1
             let expected = ClipType.combine op (subject.Contains pt) (clip.Contains pt)
-            Expect.equal (result.Contains pt) expected $"point {pt.AsString} for {op}"
-    Expect.isTrue (tested > 100) "enough points tested"
+            assertThat (result.Contains pt) (tag $"point {pt.AsString} for {op}" >> isEqualTo expected)
+    assertThat tested (tag "enough points tested" >> isGreaterThan 100)
 
 /// Runs all four operations with one engine and checks them against the oracle and the area identities.
 let private checkAll (rand: Random) (engine: BoolOpsEngine) (subject: Shape) (clip: Shape) =
@@ -86,101 +78,108 @@ let private checkAll (rand: Random) (engine: BoolOpsEngine) (subject: Shape) (cl
     let sA = area (engine.Simplify subject)
     let sB = area (engine.Simplify clip)
     let acc = Accuracy.medium
-    Expect.floatClose acc (area uni) (sA + sB - area inter) "area of union"
-    Expect.floatClose acc (area diff) (sA - area inter) "area of difference"
-    Expect.floatClose acc (area xor) (sA + sB - 2.0 * area inter) "area of xor"
+    assertThat (area uni)  (tag "area of union"      >> isCloseTo acc (sA + sB - area inter))
+    assertThat (area diff) (tag "area of difference" >> isCloseTo acc (sA - area inter))
+    assertThat (area xor)  (tag "area of xor"        >> isCloseTo acc (sA + sB - 2.0 * area inter))
 
 let tests =
-    testList "Engine" [
+    testList ("Engine", [
 
-        testCase "two overlapping squares" <| fun _ ->
+        test ("two overlapping squares", fun _ ->
             let a = Shape.ofPolyline (square 0.0 0.0 10.0)
             let b = Shape.ofPolyline (square 5.0 5.0 10.0)
             let uni = BoolOps.union a b
             checkResult uni
-            Expect.equal uni.PathCount 1 "union is one contour"
-            Expect.equal uni.Paths.[0].PointCount 9 "union has 8 corners"
-            Expect.floatClose Accuracy.high (area uni) 175.0 "union area"
+            assertThat uni.PathCount (tag "union is one contour" >> isEqualTo 1)
+            assertThat uni.Paths.[0].PointCount (tag "union has 8 corners" >> isEqualTo 9)
+            assertThat (area uni) (tag "union area" >> isCloseTo Accuracy.high 175.0)
             let inter = BoolOps.intersection a b
-            Expect.equal inter.PathCount 1 "intersection is one contour"
-            Expect.equal inter.Paths.[0].PointCount 5 "intersection has 4 corners"
-            Expect.floatClose Accuracy.high (area inter) 25.0 "intersection area"
+            assertThat inter.PathCount (tag "intersection is one contour" >> isEqualTo 1)
+            assertThat inter.Paths.[0].PointCount (tag "intersection has 4 corners" >> isEqualTo 5)
+            assertThat (area inter) (tag "intersection area" >> isCloseTo Accuracy.high 25.0)
             let diff = BoolOps.difference a b
-            Expect.equal diff.PathCount 1 "difference is one contour"
-            Expect.floatClose Accuracy.high (area diff) 75.0 "difference area"
+            assertThat diff.PathCount (tag "difference is one contour" >> isEqualTo 1)
+            assertThat (area diff) (tag "difference area" >> isCloseTo Accuracy.high 75.0)
             let xor = BoolOps.xor a b
-            Expect.equal xor.PathCount 2 "xor is two contours touching at the crossings"
-            Expect.floatClose Accuracy.high (area xor) 150.0 "xor area"
+            assertThat xor.PathCount (tag "xor is two contours touching at the crossings" >> isEqualTo 2)
+            assertThat (area xor) (tag "xor area" >> isCloseTo Accuracy.high 150.0)
             checkAll (Random 1) (BoolOpsEngine 1e-6) a b
+        )
 
-        testCase "disjoint squares" <| fun _ ->
+        test ("disjoint squares", fun _ ->
             let a = Shape.ofPolyline (square 0.0 0.0 1.0)
             let b = Shape.ofPolyline (square 5.0 5.0 1.0)
             let uni = BoolOps.union a b
-            Expect.equal uni.PathCount 2 "union keeps both"
-            Expect.floatClose Accuracy.high (area uni) 2.0 "union area"
-            Expect.isTrue (BoolOps.intersection a b).IsEmpty "intersection is empty"
-            Expect.floatClose Accuracy.high (area (BoolOps.difference a b)) 1.0 "difference is a"
-            Expect.floatClose Accuracy.high (area (BoolOps.xor a b)) 2.0 "xor is both"
+            assertThat uni.PathCount (tag "union keeps both" >> isEqualTo 2)
+            assertThat (area uni) (tag "union area" >> isCloseTo Accuracy.high 2.0)
+            assertThat (BoolOps.intersection a b).IsEmpty (tag "intersection is empty" >> isTrue)
+            assertThat (area (BoolOps.difference a b)) (tag "difference is a" >> isCloseTo Accuracy.high 1.0)
+            assertThat (area (BoolOps.xor a b)) (tag "xor is both" >> isCloseTo Accuracy.high 2.0)
+        )
 
-        testCase "square minus nested square gives a hole" <| fun _ ->
+        test ("square minus nested square gives a hole", fun _ ->
             let a = Shape.ofPolyline (square 0.0 0.0 10.0)
             let b = Shape.ofPolyline (square 3.0 3.0 4.0)
             let diff = BoolOps.difference a b
             checkResult diff
-            Expect.equal diff.PathCount 2 "outer and hole"
-            Expect.floatClose Accuracy.high (area diff) 84.0 "area with hole"
+            assertThat diff.PathCount (tag "outer and hole" >> isEqualTo 2)
+            assertThat (area diff) (tag "area with hole" >> isCloseTo Accuracy.high 84.0)
             let outer = diff.Paths |> Seq.find (fun p -> p.SignedArea > 0.0)
             let hole = diff.Paths |> Seq.find (fun p -> p.SignedArea < 0.0)
-            Expect.floatClose Accuracy.high outer.SignedArea 100.0 "outer is counter clockwise"
-            Expect.floatClose Accuracy.high hole.SignedArea -16.0 "hole is clockwise"
-            Expect.isFalse (diff.Contains (Pt (5.0, 5.0))) "hole is outside"
-            Expect.isTrue (diff.Contains (Pt (1.0, 1.0))) "ring is inside"
-            Expect.floatClose Accuracy.high (area (BoolOps.union a b)) 100.0 "union is the outer"
-            Expect.floatClose Accuracy.high (area (BoolOps.intersection a b)) 16.0 "intersection is the inner"
+            assertThat outer.SignedArea (tag "outer is counter clockwise" >> isCloseTo Accuracy.high 100.0)
+            assertThat hole.SignedArea (tag "hole is clockwise" >> isCloseTo Accuracy.high -16.0)
+            assertThat (diff.Contains (Pt (5.0, 5.0))) (tag "hole is outside" >> isFalse)
+            assertThat (diff.Contains (Pt (1.0, 1.0))) (tag "ring is inside" >> isTrue)
+            assertThat (area (BoolOps.union a b)) (tag "union is the outer" >> isCloseTo Accuracy.high 100.0)
+            assertThat (area (BoolOps.intersection a b)) (tag "intersection is the inner" >> isCloseTo Accuracy.high 16.0)
+        )
 
-        testCase "identical squares" <| fun _ ->
+        test ("identical squares", fun _ ->
             let a = Shape.ofPolyline (square 0.0 0.0 10.0)
             let b = Shape.ofPolyline (square 0.0 0.0 10.0)
-            Expect.floatClose Accuracy.high (area (BoolOps.union a b)) 100.0 "union"
-            Expect.equal (BoolOps.union a b).PathCount 1 "union is one path"
-            Expect.floatClose Accuracy.high (area (BoolOps.intersection a b)) 100.0 "intersection"
-            Expect.isTrue (BoolOps.difference a b).IsEmpty "difference is empty"
-            Expect.isTrue (BoolOps.xor a b).IsEmpty "xor is empty"
+            assertThat (area (BoolOps.union a b)) (tag "union" >> isCloseTo Accuracy.high 100.0)
+            assertThat (BoolOps.union a b).PathCount (tag "union is one path" >> isEqualTo 1)
+            assertThat (area (BoolOps.intersection a b)) (tag "intersection" >> isCloseTo Accuracy.high 100.0)
+            assertThat (BoolOps.difference a b).IsEmpty (tag "difference is empty" >> isTrue)
+            assertThat (BoolOps.xor a b).IsEmpty (tag "xor is empty" >> isTrue)
+        )
 
-        testCase "squares sharing an edge" <| fun _ ->
+        test ("squares sharing an edge", fun _ ->
             let a = Shape.ofPolyline (square 0.0 0.0 10.0)
             let b = Shape.ofPolyline (square 10.0 0.0 10.0)
             let uni = BoolOps.union a b
             checkResult uni
-            Expect.equal uni.PathCount 1 "one contour"
-            Expect.floatClose Accuracy.high (area uni) 200.0 "area"
-            Expect.equal uni.Paths.[0].PointCount 7 "the two shared corners stay as collinear vertices"
-            Expect.isTrue (BoolOps.intersection a b).IsEmpty "no overlap"
-            Expect.floatClose Accuracy.high (area (BoolOps.difference a b)) 100.0 "difference is a"
+            assertThat uni.PathCount (tag "one contour" >> isEqualTo 1)
+            assertThat (area uni) (tag "area" >> isCloseTo Accuracy.high 200.0)
+            assertThat uni.Paths.[0].PointCount (tag "the two shared corners stay as collinear vertices" >> isEqualTo 7)
+            assertThat (BoolOps.intersection a b).IsEmpty (tag "no overlap" >> isTrue)
+            assertThat (area (BoolOps.difference a b)) (tag "difference is a" >> isCloseTo Accuracy.high 100.0)
+        )
 
-        testCase "squares touching at a corner stay two contours" <| fun _ ->
+        test ("squares touching at a corner stay two contours", fun _ ->
             let a = Shape.ofPolyline (square 0.0 0.0 10.0)
             let b = Shape.ofPolyline (square 10.0 10.0 10.0)
             let uni = BoolOps.union a b
             checkResult uni
-            Expect.equal uni.PathCount 2 "two contours"
-            Expect.floatClose Accuracy.high (area uni) 200.0 "area"
+            assertThat uni.PathCount (tag "two contours" >> isEqualTo 2)
+            assertThat (area uni) (tag "area" >> isCloseTo Accuracy.high 200.0)
+        )
 
-        testCase "bowtie simplifies into two lobes under both rules" <| fun _ ->
+        test ("bowtie simplifies into two lobes under both rules", fun _ ->
             let bowtie = poly [ (0.0, 0.0); (10.0, 10.0); (10.0, 0.0); (0.0, 10.0) ]
             for rule in [ FillRule.NonZero; FillRule.EvenOdd ] do
                 let r = BoolOps.simplify (Shape.ofPolyline (bowtie, rule))
                 checkResult r
-                Expect.equal r.PathCount 2 $"two lobes under {rule}"
-                Expect.floatClose Accuracy.high (area r) 50.0 $"area under {rule}"
+                assertThat r.PathCount (tag $"two lobes under {rule}" >> isEqualTo 2)
+                assertThat (area r) (tag $"area under {rule}" >> isCloseTo Accuracy.high 50.0)
                 for p in r.Paths do
-                    Expect.isTrue (p.SignedArea > 0.0) "both lobes are counter clockwise"
+                    assertThat p.SignedArea (tag "both lobes are counter clockwise" >> isGreaterThan 0.0)
             let r = BoolOps.simplify (Shape.ofPolyline (bowtie, FillRule.Positive))
-            Expect.equal r.PathCount 1 "only the counter clockwise lobe under Positive"
-            Expect.floatClose Accuracy.high (area r) 25.0 "area under Positive"
+            assertThat r.PathCount (tag "only the counter clockwise lobe under Positive" >> isEqualTo 1)
+            assertThat (area r) (tag "area under Positive" >> isCloseTo Accuracy.high 25.0)
+        )
 
-        testCase "pentagram center depends on the fill rule" <| fun _ ->
+        test ("pentagram center depends on the fill rule", fun _ ->
             let star = poly [ for i in 0 .. 4 do
                                 let a = Math.PI / 2.0 + float (i * 2) * 2.0 * Math.PI / 5.0
                                 (10.0 * cos a, 10.0 * sin a) ]
@@ -189,62 +188,67 @@ let tests =
             let evenOdd = BoolOps.simplify (Shape.ofPolyline (star, FillRule.EvenOdd))
             checkResult nonZero
             checkResult evenOdd
-            Expect.equal nonZero.PathCount 1 "non zero fills the center"
-            Expect.isTrue (nonZero.Contains center) "center inside under non zero"
-            Expect.equal evenOdd.PathCount 5 "even odd leaves the five tips, separated at the crossings"
-            Expect.isFalse (evenOdd.Contains center) "center outside under even odd"
-            Expect.isTrue (area nonZero > area evenOdd) "even odd area is smaller"
+            assertThat nonZero.PathCount (tag "non zero fills the center" >> isEqualTo 1)
+            assertThat (nonZero.Contains center) (tag "center inside under non zero" >> isTrue)
+            assertThat evenOdd.PathCount (tag "even odd leaves the five tips, separated at the crossings" >> isEqualTo 5)
+            assertThat (evenOdd.Contains center) (tag "center outside under even odd" >> isFalse)
+            assertThat (area nonZero) (tag "even odd area is smaller" >> isGreaterThan (area evenOdd))
             let tip = Pt (0.0, 9.0)
-            Expect.isTrue (nonZero.Contains tip && evenOdd.Contains tip) "tips are inside under both"
+            assertThat (nonZero.Contains tip && evenOdd.Contains tip) (tag "tips are inside under both" >> isTrue)
+        )
 
-        testCase "an even odd glyph unioned with a non zero outline in one pass" <| fun _ ->
+        test ("an even odd glyph unioned with a non zero outline in one pass", fun _ ->
             // a letter O: outer and inner square with the same orientation, a hole only under EvenOdd
             let glyph = Shape.create ([ square 0.0 0.0 10.0; square 3.0 3.0 4.0 ], FillRule.EvenOdd)
             let bar = Shape.ofPolyline (square 8.0 4.0 10.0, FillRule.NonZero)
             let uni = BoolOps.union glyph bar
             checkResult uni
-            Expect.isFalse (uni.Contains (Pt (5.0, 5.0))) "the hole of the glyph survives"
-            Expect.isTrue (uni.Contains (Pt (15.0, 8.0))) "the bar is inside"
-            Expect.isTrue (uni.Contains (Pt (9.0, 5.0))) "the overlap is inside"
-            Expect.floatClose Accuracy.high (area uni) (84.0 + 100.0 - 12.0) "area"
+            assertThat (uni.Contains (Pt (5.0, 5.0)))  (tag "the hole of the glyph survives" >> isFalse)
+            assertThat (uni.Contains (Pt (15.0, 8.0))) (tag "the bar is inside" >> isTrue)
+            assertThat (uni.Contains (Pt (9.0, 5.0)))  (tag "the overlap is inside" >> isTrue)
+            assertThat (area uni) (tag "area" >> isCloseTo Accuracy.high (84.0 + 100.0 - 12.0))
             oracle (Random 2) glyph bar ClipType.Union uni
             // the same glyph under NonZero has no hole:
             let solid = Shape.create (glyph.Paths, FillRule.NonZero)
-            Expect.floatClose Accuracy.high (area (BoolOps.union solid bar)) (100.0 + 100.0 - 12.0) "no hole under non zero"
+            assertThat (area (BoolOps.union solid bar)) (tag "no hole under non zero" >> isCloseTo Accuracy.high (100.0 + 100.0 - 12.0))
+        )
 
-        testCase "input vertices come out unchanged" <| fun _ ->
+        test ("input vertices come out unchanged", fun _ ->
             let a = Shape.ofPolyline (poly [ (0.1, 0.2); (10.3, 0.7); (9.9, 10.1); (0.4, 9.6) ])
             let b = Shape.ofPolyline (poly [ (5.5, 5.5); (15.5, 5.7); (15.1, 15.3); (5.2, 15.4) ])
             let uni = BoolOps.union a b
             let resultXYs = [ for p in uni.Paths do for i in 0 .. p.PointCount - 2 do (p.GetX i, p.GetY i) ]
             for (x, y) in [ (0.1, 0.2); (10.3, 0.7); (0.4, 9.6); (15.5, 5.7); (15.1, 15.3); (5.2, 15.4) ] do
-                Expect.isTrue (List.contains (x, y) resultXYs) $"outer input corner {x}, {y} is in the result bit for bit"
-            Expect.equal uni.Paths.[0].PointCount 9 "6 input corners and 2 intersections"
+                assertThat resultXYs (tag $"outer input corner {x}, {y} is in the result bit for bit" >> contain (x, y))
+            assertThat uni.Paths.[0].PointCount (tag "6 input corners and 2 intersections" >> isEqualTo 9)
+        )
 
-        testCase "a vertex within tolerance of an edge snaps onto it" <| fun _ ->
+        test ("a vertex within tolerance of an edge snaps onto it", fun _ ->
             let a = Shape.ofPolyline (square 0.0 0.0 10.0)
             let b = Shape.ofPolyline (poly [ (5.0, 10.0 + 1e-9); (15.0, 12.0); (15.0, 20.0); (5.0, 20.0) ]) // touches the top edge of a within tolerance
             let uni = BoolOps.union a b
             checkResult uni
-            Expect.equal uni.PathCount 2 "the shapes touch at one vertex, so the union is two contours meeting there"
-            Expect.floatClose Accuracy.high (area uni) 190.0 "square plus trapezoid"
-            Expect.isTrue (BoolOps.intersection a b).IsEmpty "no area in common"
+            assertThat uni.PathCount (tag "the shapes touch at one vertex, so the union is two contours meeting there" >> isEqualTo 2)
+            assertThat (area uni) (tag "square plus trapezoid" >> isCloseTo Accuracy.high 190.0)
+            assertThat (BoolOps.intersection a b).IsEmpty (tag "no area in common" >> isTrue)
             let top = uni.Paths |> Seq.find (fun p -> p.Contains (Pt (5.0, 5.0)))
-            Expect.equal top.PointCount 6 "the square gained the snapped vertex on its top edge"
+            assertThat top.PointCount (tag "the square gained the snapped vertex on its top edge" >> isEqualTo 6)
             let xyIn = [ for p in uni.Paths do for i in 0 .. p.PointCount - 2 do (p.GetX i, p.GetY i) ]
-            Expect.isTrue (List.contains (5.0, 10.0 + 1e-9) xyIn) "the input vertex is kept, not moved onto the edge"
+            assertThat xyIn (tag "the input vertex is kept, not moved onto the edge" >> contain (5.0, 10.0 + 1e-9))
+        )
 
-        testCase "empty shapes" <| fun _ ->
+        test ("empty shapes", fun _ ->
             let a = Shape.ofPolyline (square 0.0 0.0 10.0)
             let e = Shape.empty FillRule.NonZero
-            Expect.floatClose Accuracy.high (area (BoolOps.union a e)) 100.0 "a union empty"
-            Expect.floatClose Accuracy.high (area (BoolOps.union e a)) 100.0 "empty union a"
-            Expect.isTrue (BoolOps.intersection a e).IsEmpty "a intersect empty"
-            Expect.isTrue (BoolOps.difference e a).IsEmpty "empty minus a"
-            Expect.floatClose Accuracy.high (area (BoolOps.difference a e)) 100.0 "a minus empty"
-            Expect.isTrue (BoolOps.union e e).IsEmpty "empty union empty"
+            assertThat (area (BoolOps.union a e)) (tag "a union empty" >> isCloseTo Accuracy.high 100.0)
+            assertThat (area (BoolOps.union e a)) (tag "empty union a" >> isCloseTo Accuracy.high 100.0)
+            assertThat (BoolOps.intersection a e).IsEmpty (tag "a intersect empty" >> isTrue)
+            assertThat (BoolOps.difference e a).IsEmpty (tag "empty minus a" >> isTrue)
+            assertThat (area (BoolOps.difference a e)) (tag "a minus empty" >> isCloseTo Accuracy.high 100.0)
+            assertThat (BoolOps.union e e).IsEmpty (tag "empty union empty" >> isTrue)
+        )
 
-        testCase "unionAll merges many shapes with mixed rules" <| fun _ ->
+        test ("unionAll merges many shapes with mixed rules", fun _ ->
             let shapes =
                 [ Shape.create ([ square 0.0 0.0 10.0; square 3.0 3.0 4.0 ], FillRule.EvenOdd)
                   Shape.ofPolyline (square 8.0 0.0 10.0)
@@ -252,20 +256,22 @@ let tests =
                   Shape.ofPolyline (square 4.0 4.0 2.0) ]
             let all = BoolOps.unionAll shapes
             checkResult all
-            Expect.isTrue (all.Contains (Pt (5.0, 5.0))) "the small square fills the hole"
-            Expect.isFalse (all.Contains (Pt (3.5, 5.0))) "the rest of the hole stays"
-            Expect.isTrue (all.Contains (Pt (32.0, 32.0))) "the clockwise square counts under non zero"
-            Expect.floatClose Accuracy.high (area all) (84.0 + 100.0 - 20.0 + 25.0 + 4.0) "area"
+            assertThat (all.Contains (Pt (5.0, 5.0)))   (tag "the small square fills the hole" >> isTrue)
+            assertThat (all.Contains (Pt (3.5, 5.0)))   (tag "the rest of the hole stays" >> isFalse)
+            assertThat (all.Contains (Pt (32.0, 32.0))) (tag "the clockwise square counts under non zero" >> isTrue)
+            assertThat (area all) (tag "area" >> isCloseTo Accuracy.high (84.0 + 100.0 - 20.0 + 25.0 + 4.0))
+        )
 
-        testCase "random star polygons against the point oracle" <| fun _ ->
+        test ("random star polygons against the point oracle", fun _ ->
             let rand = Random 11
             let engine = BoolOpsEngine 1e-6
             for i in 1 .. 25 do
                 let a = Shape.ofPolyline (randomStar rand 0.0 0.0 10.0 (5 + rand.Next 20) (i % 2 = 0), FillRule.NonZero)
                 let b = Shape.ofPolyline (randomStar rand (rand.NextDouble () * 10.0) (rand.NextDouble () * 10.0) 8.0 (5 + rand.Next 20) (i % 3 = 0), FillRule.NonZero)
                 checkAll rand engine a b
+        )
 
-        testCase "random self intersecting polygons against the point oracle" <| fun _ ->
+        test ("random self intersecting polygons against the point oracle", fun _ ->
             let rand = Random 12
             let engine = BoolOpsEngine 1e-6
             for i in 1 .. 25 do
@@ -274,16 +280,18 @@ let tests =
                 let a = Shape.ofPolyline (randomTangle rand 0.0 0.0 10.0 (4 + rand.Next 10), ruleA)
                 let b = Shape.ofPolyline (randomTangle rand 3.0 3.0 10.0 (4 + rand.Next 10), ruleB)
                 checkAll rand engine a b
+        )
 
-        testCase "many paths per shape against the point oracle" <| fun _ ->
+        test ("many paths per shape against the point oracle", fun _ ->
             let rand = Random 13
             let engine = BoolOpsEngine 1e-6
             for _ in 1 .. 10 do
                 let a = Shape.create ([ for _ in 1 .. 4 do randomStar rand (rand.NextDouble () * 20.0) (rand.NextDouble () * 20.0) 6.0 8 true ], FillRule.NonZero)
                 let b = Shape.create ([ for _ in 1 .. 4 do randomTangle rand (rand.NextDouble () * 20.0) (rand.NextDouble () * 20.0) 6.0 6 ], FillRule.EvenOdd)
                 checkAll rand engine a b
+        )
 
-        testCase "the graph invariants hold after every random operation" <| fun _ ->
+        test ("the graph invariants hold after every random operation", fun _ ->
             let rand = Random 14
             let engine = BoolOpsEngine 1e-6
             for _ in 1 .. 20 do
@@ -291,32 +299,34 @@ let tests =
                 let b = Shape.ofPolyline (randomStar rand 2.0 2.0 9.0 (4 + rand.Next 8) true)
                 engine.Execute (a, b, ClipType.Xor) |> ignore
                 Graph.validate engine.State
+        )
 
-        testCase "degenerate inputs" <| fun _ ->
+        test ("degenerate inputs", fun _ ->
             // all points collinear, zero area:
             let flat = Shape.ofPolyline (poly [ (0.0, 0.0); (5.0, 0.0); (10.0, 0.0); (5.0, 0.0) ])
-            Expect.isTrue (BoolOps.simplify flat).IsEmpty "a flat polygon has no area"
-            Expect.floatClose Accuracy.high (area (BoolOps.union flat (Shape.ofPolyline (square 0.0 0.0 4.0)))) 16.0 "flat polygon adds nothing"
+            assertThat (BoolOps.simplify flat).IsEmpty (tag "a flat polygon has no area" >> isTrue)
+            assertThat (area (BoolOps.union flat (Shape.ofPolyline (square 0.0 0.0 4.0)))) (tag "flat polygon adds nothing" >> isCloseTo Accuracy.high 16.0)
             // duplicate consecutive points and a spike:
             let spiky = Shape.ofPolyline (poly [ (0.0, 0.0); (0.0, 0.0); (10.0, 0.0); (10.0, 10.0); (15.0, 15.0); (10.0, 10.0); (0.0, 10.0) ])
             let r = BoolOps.simplify spiky
             checkResult r
-            Expect.floatClose Accuracy.high (area r) 100.0 "spike and duplicate removed"
-            Expect.equal r.Paths.[0].PointCount 5 "just the square"
+            assertThat (area r) (tag "spike and duplicate removed" >> isCloseTo Accuracy.high 100.0)
+            assertThat r.Paths.[0].PointCount (tag "just the square" >> isEqualTo 5)
             // a square traced twice: winding 2, filled under NonZero, empty under EvenOdd
             let twice = poly [ (0.0, 0.0); (10.0, 0.0); (10.0, 10.0); (0.0, 10.0); (0.0, 0.0); (10.0, 0.0); (10.0, 10.0); (0.0, 10.0) ]
-            Expect.floatClose Accuracy.high (area (BoolOps.simplify (Shape.ofPolyline (twice, FillRule.NonZero)))) 100.0 "twice under non zero"
-            Expect.isTrue (BoolOps.simplify (Shape.ofPolyline (twice, FillRule.EvenOdd))).IsEmpty "twice under even odd"
+            assertThat (area (BoolOps.simplify (Shape.ofPolyline (twice, FillRule.NonZero)))) (tag "twice under non zero" >> isCloseTo Accuracy.high 100.0)
+            assertThat (BoolOps.simplify (Shape.ofPolyline (twice, FillRule.EvenOdd))).IsEmpty (tag "twice under even odd" >> isTrue)
             // a square and its reverse in one NonZero shape cancel, as two shapes they do not:
             let sq = square 0.0 0.0 10.0
             let both = Shape.create ([ sq; sq.Reverse () ], FillRule.NonZero)
-            Expect.isTrue (BoolOps.simplify both).IsEmpty "opposite copies cancel under non zero"
-            Expect.floatClose Accuracy.high (area (BoolOps.union (Shape.ofPolyline sq) (Shape.ofPolyline (sq.Reverse ())))) 100.0 "as separate shapes both count"
+            assertThat (BoolOps.simplify both).IsEmpty (tag "opposite copies cancel under non zero" >> isTrue)
+            assertThat (area (BoolOps.union (Shape.ofPolyline sq) (Shape.ofPolyline (sq.Reverse ())))) (tag "as separate shapes both count" >> isCloseTo Accuracy.high 100.0)
             // tiny polygon below the tolerance:
             let tiny = Shape.ofPolyline (square 0.0 0.0 1e-8)
-            Expect.isTrue (BoolOps.simplify tiny).IsEmpty "smaller than the tolerance vanishes"
+            assertThat (BoolOps.simplify tiny).IsEmpty (tag "smaller than the tolerance vanishes" >> isTrue)
+        )
 
-        testCase "propagated winding numbers agree with per edge ray casting on clean input" <| fun _ ->
+        test ("propagated winding numbers agree with per edge ray casting on clean input", fun _ ->
             let rand = Random 15
             let engine = BoolOpsEngine 1e-6
             for i in 1 .. 10 do
@@ -327,9 +337,10 @@ let tests =
                 let byPropagation = Array.init st.GCount (fun e -> (st.WindLeftS.[e], st.WindLeftC.[e]))
                 Winding.computeByRayCast st
                 let byRayCast = Array.init st.GCount (fun e -> (st.WindLeftS.[e], st.WindLeftC.[e]))
-                Expect.equal byPropagation byRayCast $"winding numbers of run {i}"
+                assertThat byPropagation (tag $"winding numbers of run {i}" >> isEqualTo byRayCast)
+        )
 
-        testCase "two stars with thousands of thin spikes" <| fun _ ->
+        test ("two stars with thousands of thin spikes", fun _ ->
             let rand = Random 16
             let star cx cy corners =
                 poly [ for i in 0 .. corners - 1 do
@@ -341,11 +352,13 @@ let tests =
             let engine = BoolOpsEngine 1e-6
             checkAll rand engine a b
             Graph.validate engine.State
+        )
 
-        testCase "engine rejects bad tolerances and open paths" <| fun _ ->
-            Expect.isTrue (fails (fun () -> BoolOpsEngine -1.0)) "negative"
-            Expect.isTrue (fails (fun () -> BoolOpsEngine nan)) "nan"
+        test ("engine rejects bad tolerances and open paths", fun _ ->
+            assertThat (fun () -> BoolOpsEngine -1.0 |> ignore) (tag "negative" >> throws)
+            assertThat (fun () -> BoolOpsEngine nan |> ignore) (tag "nan" >> throws)
             let a = Shape.ofPolyline (square 0.0 0.0 10.0)
             a.Paths.[0].SetPt (4, Pt (1.0, 1.0)) // open it after the Shape was created
-            Expect.isTrue (fails (fun () -> BoolOps.simplify a)) "opened path fails at execution"
-    ]
+            assertThat (fun () -> BoolOps.simplify a |> ignore) (tag "opened path fails at execution" >> throws)
+        )
+    ])

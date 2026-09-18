@@ -3,13 +3,11 @@
   "scripts": {
     "checkTS": "tsc",
     "buildTS": "dotnet fable ../BoolOps.fsproj --lang typescript --outDir ./_ts --configuration Release --run npm run checkTS",
-    "buildJS": "dotnet fable --outDir dist/testsRelease --noCache --configuration Release",
-    "buildDb": "dotnet fable --outDir dist/testsDebug --noCache --configuration Debug",
-    "build": "dotnet tool restore && npm run buildJS && npm run buildDb && npm run buildTS",
-    "test": "npm run build && mocha --timeout 120000 dist/testsRelease && mocha --timeout 120000 dist/testsDebug"
+    "testJS": "dotnet fable --outDir dist/testsRelease --noCache --configuration Release --runScript",
+    "testDb": "dotnet fable --outDir dist/testsDebug --noCache --configuration Debug --runScript",
+    "test": "dotnet tool restore && npm run testJS && npm run testDb && npm run buildTS"
   },
   "devDependencies": {
-    "mocha": "12.0.0-rc.5",
     "typescript": "^7.0.2"
   }
 }

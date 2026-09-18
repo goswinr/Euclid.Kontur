@@ -472,7 +472,7 @@ and the residual crossings described in section 2 are not resolved.
 
 ## 8. Testing
 
-- Expecto on .NET, Fable.Mocha on Node, the same test files, as in Euclid and Euclid.BVH.
+- Scriptorium (Quill for the test DSL, Nib for the assertions) runs the same test files unchanged on .NET and on Node.
 - Oracle tests: for random points, `result.Contains pt` must equal `combine op (subject.Contains pt) (clip.Contains pt)` for points farther than `tolerance` from any input edge. This tests the region, not the contour shape, and catches almost every bug in phases 2 to 8.
 - Area tests: `area (A union B) = area A + area B - area (A intersect B)`, xor and difference likewise.
 - Winding propagation against per edge ray casting on every test input.
@@ -503,7 +503,7 @@ Src/Winding.fs              phase 6, ray cast
 Src/Link.fs                 phases 7 and 8
 Src/Engine.fs               BoolOpsEngine, owns every buffer, runs the phases
 Src/BoolOps.fs              public module of convenience functions
-Test/                       Expecto + Fable.Mocha, fixtures, oracle tests, benchmarks
+Test/                       Scriptorium.Quill + Scriptorium.Nib, fixtures, oracle tests, benchmarks
 Docs/                       fsdocs, plus the SVG visualisation
 ```
 

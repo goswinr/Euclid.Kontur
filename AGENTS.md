@@ -13,7 +13,7 @@ Read `DESIGN.md` first: it holds the reviewed design, the pipeline and the reaso
 - No `int64`, `Span`, `stackalloc`, `ArrayPool` or `Array.Sort(keys, items)`. They are not available on Fable or net472.
 - Visitor callbacks are `inline` members with `[<InlineIfLambda>]` parameters. State a visitor needs lives in
   fields, not in captured `let mutable` locals.
-- Tests run on both .NET (Expecto) and Node (Fable.Mocha) from the same files:
+- Tests use Scriptorium (Quill for the DSL, Nib for the assertions) and run unchanged on .NET and on Node:
   - `dotnet run --project ./Test/Test.fsproj`
   - `cd Test && npm install && npm test`
 

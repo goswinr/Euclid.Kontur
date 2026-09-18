@@ -7,10 +7,11 @@
     <OtherFlags>$(OtherFlags) --warnon:1182</OtherFlags>    <!-- 1182: warn on unused variables -->
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Expecto" Version="11.1.0" />
-    <PackageReference Include="Fable.Mocha" Version="2.17.0" />
+    <PackageReference Include="Scriptorium.Quill" Version="0.7.1" />
+    <PackageReference Include="Scriptorium.Nib" Version="0.4.1" />
     <ProjectReference Include="../BoolOps.fsproj" />
 
+    <Compile Include="TestUtil.fs" />
     <Compile Include="TestFillRule.fs" />
     <Compile Include="TestShape.fs" />
     <Compile Include="TestBuffers.fs" />
