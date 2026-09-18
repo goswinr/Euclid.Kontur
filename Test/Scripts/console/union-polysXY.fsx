@@ -1,5 +1,5 @@
 // Self union of the noisy data/polysXY.json dataset at ten scales.
-// BoolOps is compared against Klip and Clipper2 at the matching precision.
+// BoolOps is compared against Klip and Clipper2 at the matching precision, in result and in time per call.
 // One off exploratory script, not part of CI. Adapted from Klip/Test/Scripts/console/union-polysXY.fsx.
 //
 // Build the library first:  dotnet build -c Release Src/BoolOps.fsproj
@@ -35,6 +35,23 @@ let toShape (xy: XY[][]) : Shape =
             pl)
     Shape.create (paths, FillRule.NonZero)
 
+/// How often each timed call is repeated after one warmup call.
+let repetitions = 20
+
+/// Runs the function once untimed, then repetitions times timed.
+/// Returns the last result and the average time per call in stopwatch ticks.
+let timed (f: unit -> 'T) : struct ('T * int64) =
+    let mutable result = f ()
+    let sw = Diagnostics.Stopwatch.StartNew ()
+    for _ = 1 to repetitions do
+        result <- f ()
+    sw.Stop ()
+    struct (result, sw.ElapsedTicks / int64 repetitions)
+
+/// Stopwatch ticks as milliseconds with three decimals.
+let ms (ticks: int64) : string =
+    (float ticks * 1000.0 / float Diagnostics.Stopwatch.Frequency).ToString "0.000"
+
 do
     let xy: XY[][][] =
         __SOURCE_DIRECTORY__ + "/../data/polysXY.json"
@@ -45,24 +62,22 @@ do
         xy
         |> Array.map Array.head // only the outer path of each polygon
 
-    printfn $"Original Paths: {xy.Length}"
+    printfn $"Original Paths: {xy.Length}, {repetitions} timed runs per call after one warmup, the input is built outside the timing"
+    let engine = BoolOpsEngine BoolOps.defaultTolerance
     for i = -3 to 6 do
         let scale = 10. ** float i
         let xys = scaled scale xy
 
-        // BoolOps:
-        let br =
-            xys
-            |> toShape
-            |> BoolOps.simplify
-        printfn $"BoolOps:  Scale: {scale}, Result Paths: {br.PathCount}, Area: {br.SignedArea / (scale * scale)}"
+        // BoolOps, a fresh engine per call and one reused engine:
+        let shape = toShape xys
+        let struct (br, tFresh) = timed (fun () -> BoolOps.simplify shape)
+        let struct (_, tReused) = timed (fun () -> engine.Simplify shape)
+        printfn $"BoolOps:  Scale: {scale}, Result Paths: {br.PathCount}, Area: {br.SignedArea / (scale * scale)}, {ms tFresh} ms fresh engine, {ms tReused} ms reused engine"
 
         // Klip:
-        let kr =
-            xys
-            |> Klip.Paths64.createFromxyMembers
-            |> Klip.Klipper.unionSelfChecked
-        printfn $"Klip:     Scale: {scale}, Result Paths: {kr.Count}"
+        let kPaths = Klip.Paths64.createFromxyMembers xys
+        let struct (kr, tKlip) = timed (fun () -> Klip.Klipper.unionSelfChecked kPaths)
+        printfn $"Klip:     Scale: {scale}, Result Paths: {kr.Count}, {ms tKlip} ms"
 
         // Clipper2:
         let cD =
@@ -73,10 +88,11 @@ do
                     c.Add(Clipper2Lib.PointD(p.x, p.y))
                 ps.Add(c)
             ps
-        let cr =
-            Clipper2Lib.Clipper.BooleanOp(
-                Clipper2Lib.ClipType.Union,
-                cD, null,
-                Clipper2Lib.FillRule.NonZero,
-                precision = i)
-        printfn $"Clipper2: Scale: {scale}, Result Paths: {cr.Count}\n-"
+        let struct (cr, tClipper) =
+            timed (fun () ->
+                Clipper2Lib.Clipper.BooleanOp(
+                    Clipper2Lib.ClipType.Union,
+                    cD, null,
+                    Clipper2Lib.FillRule.NonZero,
+                    precision = i))
+        printfn $"Clipper2: Scale: {scale}, Result Paths: {cr.Count}, {ms tClipper} ms\n-"
