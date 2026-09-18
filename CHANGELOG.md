@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Test/Scripts/console/union-polysXY.fsx`: the noisy polysXY dataset from Klip, self unioned at ten scales and compared against Klip and Clipper2.
 
 ### Changed
+- The graph phase sorts the sub segments by vertex pair with a counting sort by the lower vertex and a short sort per vertex, instead of one quicksort over all of them.
 - The engine indexes its flat arrays through `Arr.get` and `Arr.set`, which emit a plain JavaScript index under Fable instead of the bounds checked library call. Seven times faster under Node on the polysXY dataset, no change on .NET.
 
 ### Fixed

@@ -66,11 +66,32 @@ module internal Graph =
                 Arr.set eFrom i b
                 Arr.set eTo i a
                 Arr.set eDir i (-1)
+        // sort by (lower vertex, higher vertex): a counting sort by the lower vertex into CSR ranges,
+        // then each range, which holds the edges of one vertex, is sorted by the higher vertex:
+        let v = s.VertexCount
         s.SortIdx <- Buffers.ensureInt s.SortIdx 0 n
+        s.EdgeStart <- Buffers.ensureInt s.EdgeStart 0 (v + 1)
         let idx = s.SortIdx
+        let start = s.EdgeStart
+        for i = 0 to v do
+            Arr.set start i 0
         for i = 0 to n - 1 do
-            Arr.set idx i i
-        Buffers.sortIndices idx 0 (n - 1) (fun i j -> Arr.get eFrom i < Arr.get eFrom j || (Arr.get eFrom i = Arr.get eFrom j && Arr.get eTo i < Arr.get eTo j))
+            let a = Arr.get eFrom i + 1
+            Arr.set start a (Arr.get start a + 1)
+        for i = 1 to v do
+            Arr.set start i (Arr.get start i + Arr.get start (i - 1))
+        for i = 0 to n - 1 do
+            let a = Arr.get eFrom i
+            Arr.set idx (Arr.get start a) i
+            Arr.set start a (Arr.get start a + 1)
+        for i = v downto 1 do
+            Arr.set start i (Arr.get start (i - 1))
+        Arr.set start 0 0
+        for a = 0 to v - 1 do
+            let first = Arr.get start a
+            let last = Arr.get start (a + 1) - 1
+            if last > first then
+                Buffers.sortIndices idx first last (fun i j -> Arr.get eTo i < Arr.get eTo j)
         s.GA      <- Buffers.ensureInt s.GA      0 n
         s.GB      <- Buffers.ensureInt s.GB      0 n
         s.GDeltaS <- Buffers.ensureInt s.GDeltaS 0 n

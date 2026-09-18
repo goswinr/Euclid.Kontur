@@ -89,6 +89,8 @@ type internal EngineState (tolerance: float) =
     member val GCount : int = 0 with get, set
     /// Scratch permutation for sorting sub segments and events.
     member val SortIdx : int[] = Array.zeroCreate 0 with get, set
+    /// Scratch: the first position in SortIdx of the sub segments of each lower vertex id, in the counting sort of phase 5a. Length VertexCount + 1.
+    member val EdgeStart : int[] = Array.zeroCreate 0 with get, set
 
     /// The pseudo angle of each half edge. Half edge 2e leaves GA.[e] towards GB.[e], half edge 2e+1 leaves GB.[e] towards GA.[e].
     member val HalfAngle : float[] = Array.zeroCreate 0 with get, set

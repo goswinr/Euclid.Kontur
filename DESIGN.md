@@ -278,8 +278,10 @@ is what handles overlapping collinear edges, shared boundaries between subject a
 paths traced twice.
 
 Sorting on the `(a, b)` key: not an `int64` key, Fable emulates `int64` with a slow class.
-Either two counting sort passes (by `b`, then stable by `a`) or an in place quicksort of an
-index array with a two-int comparison. Both are Fable safe and allocate nothing per element.
+A counting sort by `a` into CSR ranges (one range per vertex, in a scratch `int[]` of length
+`vertexCount + 1`), then each range is sorted by `b` with the in place quicksort of an index
+array. The ranges are short, a vertex's degree, so this is O(E + V) in practice. It replaced one
+quicksort over all sub segments with a two-int comparison, which took a tenth of the running time.
 
 Per vertex adjacency in CSR layout: `vertEdgeStart : int[]` of length `vertexCount + 1` and
 `vertEdges : int[]` holding every edge twice. Each vertex's range is sorted by the direction
