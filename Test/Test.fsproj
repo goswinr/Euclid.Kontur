@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>preview</LangVersion>
+    <WarningLevel>5</WarningLevel>
+    <OtherFlags>$(OtherFlags) --warnon:1182</OtherFlags>    <!-- 1182: warn on unused variables -->
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Scriptorium.Quill" Version="0.7.1" />
+    <PackageReference Include="Scriptorium.Nib" Version="0.4.1" />
+    <ProjectReference Include="../Src/Euclid.Kontur.fsproj" />
+
+    <Compile Include="TestUtil.fs" />
+    <Compile Include="TestFillRule.fs" />
+    <Compile Include="TestKontur.fs" />
+    <Compile Include="TestBuffers.fs" />
+    <Compile Include="TestBvh.fs" />
+    <Compile Include="TestEngine.fs" />
+    <Compile Include="TestKlip.fs" />
+    <Compile Include="Bench.fs" />    <!-- not a test: the benchmark fixtures, shared by the .NET and the Node benchmark script -->
+    <Compile Include="TestMain.fs" />
+  </ItemGroup>
+</Project>
