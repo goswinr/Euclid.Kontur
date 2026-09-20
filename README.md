@@ -9,8 +9,9 @@
 [![MIT license](https://img.shields.io/github/license/goswinr/Euclid.Kontur)](https://github.com/goswinr/Euclid.Kontur/blob/main/LICENSE.md)
 
 Exact and fast boolean operations on 2D polygons in F#: **union, intersection, difference and xor**, plus
-self-intersection cleanup and union of many shapes. Euclid.Kontur works directly with floating-point
-coordinates and closed `Polyline2D`s from [Euclid](https://github.com/goswinr/Euclid).
+self-intersection cleanup and union of many regions. A `Kontur` (German for contour) is a 2D region
+defined by one or more closed `Polyline2D` paths and a fill rule. Euclid.Kontur works directly with
+floating-point coordinates and the `Polyline2D` type from [Euclid](https://github.com/goswinr/Euclid).
 
 Written 99% by ChatGPT-6-Astra and Claude-Fable-5.1. But diligently prompted and tested with insights gained from [porting Clipper2 to F#](https://github.com/goswinr/Klip) and building [Euclid](https://github.com/goswinr/Euclid).
 
@@ -62,17 +63,17 @@ let contours : ResizeArray<Polyline2D> = merged.Paths
 
 Input paths must be closed: the last point repeats the first. Close them explicitly before
 creating a `Kontur`; open paths are rejected. A `Kontur` keeps references to its input polylines,
-so changing those polylines also changes the shape.
+so changing those polylines also changes the `Kontur`.
 
 Results contain closed contours with counterclockwise outer boundaries and clockwise holes,
 and use `FillRule.Positive`. `SignedArea` gives the net area of a result, subtracting holes.
-For an unsimplified input shape with overlapping paths, its sum of signed areas need not equal
+For an unsimplified input `Kontur` with overlapping paths, its sum of signed areas need not equal
 the area of the filled region.
 
 ## Fill rules and multiple paths
 
-Each shape has its own fill rule: `NonZero`, `EvenOdd`, `Positive` or `Negative`. Subject and
-clip winding numbers are evaluated separately, so shapes with different rules can be combined
+Each `Kontur` has its own fill rule: `NonZero`, `EvenOdd`, `Positive` or `Negative`. Subject and
+clip winding numbers are evaluated separately, so regions with different rules can be combined
 in one operation. For example, an `EvenOdd` outline can be cut from a `NonZero` solid.
 
 Using the rectangles from the quick start:
@@ -83,11 +84,11 @@ let hole = rectangle 2.0 2.0 6.0 6.0
 let frame = Kontur.create (Seq.append outline.Paths hole.Paths, FillRule.EvenOdd)
 
 let cleaned = Kontur.simplify frame // resolves overlaps and self intersections under its rule
-let filled = Kontur.unionAll [ frame; hole ] // simplifies each shape, then merges the results
+let filled = Kontur.unionAll [ frame; hole ] // simplifies each Kontur, then merges the results
 ```
 
 Use `simplify` for paths that together define one region under one fill rule. Use `unionAll`
-for independent shapes: each is simplified under its own rule before the final merge.
+for independent regions: each is simplified under its own rule before the final merge.
 
 ## Tolerance and coordinate preservation
 

@@ -7,18 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- Renamed the NuGet package and repository from `Kontur` to `Euclid.Kontur`, and moved all public types into the `Euclid` namespace; boolean operations remain in the `Kontur` module.
-- Renamed the public `Shape` type to `Kontur`; construction and boolean operations now share the `Kontur` companion module API.
-
-## [0.1.0] - 2026-09-19
+## [0.1.0] - 2026-09-20
 
 ### Added
 
 - First public release of Kontur.
-- Boolean operations on Euclid `Polyline2D` polygons: union, intersection, difference and xor, plus simplification of self intersections and union of many shapes.
-- `Shape`, `FillRule` and `ClipType`, with NonZero, EvenOdd, Positive and Negative fill rules chosen independently for each shape; point containment, winding number, bounds and signed area queries.
+- Boolean operations on Euclid `Polyline2D` polygons: union, intersection, difference and xor, plus simplification of self intersections and union of many regions.
+- `Kontur`, `FillRule` and `ClipType`, with NonZero, EvenOdd, Positive and Negative fill rules chosen independently for each `Kontur`; point containment, winding number, bounds and signed area queries.
 - `KonturEngine` with `Execute`, `Simplify` and `UnionAll`, reusable scratch buffers, and an explicit absolute tolerance; convenience functions in the `Kontur` module use a default tolerance of `1e-6` or accept one through their `...With` variants.
 - Floating-point coordinates without integer-grid quantization; tolerance-based handling of touching vertices, T junctions, collinear overlaps, duplicate points, spikes and self intersections, preserving the coordinates of retained input vertices.
 - Closed result contours with counterclockwise outer boundaries, clockwise holes and `FillRule.Positive`; collinear input vertices are retained by default.

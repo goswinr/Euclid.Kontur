@@ -2,7 +2,7 @@ namespace Euclid
 
 open Euclid.EuclidErrors
 
-/// <summary>A region of the plane, defined by one or more closed Polyline2Ds and a fill rule.
+/// <summary>A Kontur (German for contour) is a region of the plane defined by one or more closed Polyline2Ds and a fill rule.
 /// Paths may self intersect, overlap each other, or be nested. The fill rule decides what is inside.
 /// The fill rule belongs to the Kontur, not to the boolean operation, unlike in Clipper.
 /// Subject and clip get separate winding numbers on every edge, and each fill rule is applied to

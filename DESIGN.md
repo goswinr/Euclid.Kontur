@@ -1,6 +1,6 @@
 # Euclid.Kontur design
 
-Boolean operations (union, intersection, difference, xor) on 2D shapes made of closed
+Boolean operations (union, intersection, difference, xor) on 2D regions made of closed
 `Polyline2D`s from Euclid. Float coordinates only, no integer grid, no sweep line.
 Segment pairs are found with a private Bounding Volume Hierarchy modelled on Euclid.BVH.
 
@@ -11,16 +11,16 @@ This is a design document, not documentation of existing code. Every section mar
 
 Goals
 
-- Union, Intersection, Difference and Xor between two shapes, plus Simplify (union of a shape with nothing) to resolve self intersections.
-- Fill rules NonZero, EvenOdd, Positive and Negative, chosen per shape.
+- Union, Intersection, Difference and Xor between two Kontur values, plus Simplify (union of a Kontur with nothing) to resolve self intersections.
+- Fill rules NonZero, EvenOdd, Positive and Negative, chosen per Kontur.
 - Input vertices come out unchanged. Only intersection points are new coordinates. This is what "exact" means here, see section 2.
-- Robust against the usual degeneracies: touching vertices, T junctions, collinear overlapping edges, duplicate points, zero length segments, spikes, self intersections, many paths per shape.
+- Robust against the usual degeneracies: touching vertices, T junctions, collinear overlapping edges, duplicate points, zero length segments, spikes, self intersections, many paths per Kontur.
 - Low allocation: all intermediate state lives in flat arrays inside a reusable engine object. A boolean operation allocates only the output `Polyline2D`s when the engine is reused.
 - Same source compiles on .NET (net6.0, net472) and with Fable to JavaScript, like Euclid and Euclid.BVH.
 
 Non goals for version 1
 
-- Open polylines clipped by shapes (Clipper's "open paths"). The internal model leaves room for it, see 9.
+- Open polylines clipped by regions (Clipper's "open paths"). The internal model leaves room for it, see 9.
 - Offsetting (Euclid already has `Offset2D`).
 - Arcs, curves. Polylines only.
 - Minkowski sums.
@@ -57,7 +57,7 @@ them and documents it. Clipper2 has the same class of artefacts.
 ```fsharp
 namespace Euclid
 
-/// How the winding number of a point decides if the point is inside a shape.
+/// How the winding number of a point decides if the point is inside a Kontur.
 type FillRule =
     | EvenOdd  = 0  // odd winding is inside
     | NonZero  = 1  // winding <> 0 is inside
@@ -70,7 +70,7 @@ type ClipType =
     | Difference   = 2  // subject minus clip
     | Xor          = 3
 
-/// A region of the plane, defined by one or more closed Polyline2Ds and a fill rule.
+/// A Kontur (German for contour) is a region of the plane defined by one or more closed Polyline2Ds and a fill rule.
 /// Paths may self intersect, overlap each other, or be nested. The fill rule decides what is inside.
 /// The fill rule belongs to the Kontur, not to the boolean operation, unlike in Clipper.
 /// Subject and clip get separate winding numbers on every edge, and each fill rule is applied to
@@ -105,15 +105,15 @@ beyond "closed and at least 3 distinct points" at operation time. Open polylines
 ### 3.2 Operations
 
 ```fsharp
-/// One boolean operation between a subject and a clip shape.
+/// One boolean operation between a subject and a clip Kontur.
 module Kontur =
     val union        : subject: Kontur -> clip: Kontur -> Kontur
     val intersection : subject: Kontur -> clip: Kontur -> Kontur
     val difference   : subject: Kontur -> clip: Kontur -> Kontur
     val xor          : subject: Kontur -> clip: Kontur -> Kontur
-    /// Resolves self intersections and overlaps of one shape under its fill rule.
+    /// Resolves self intersections and overlaps of one Kontur under its fill rule.
     val simplify     : Kontur -> Kontur
-    /// Union of many shapes. Each shape is simplified under its own fill rule first, then all are merged in one NonZero pass.
+    /// Union of many Kontur values. Each Kontur is simplified under its own fill rule first, then all are merged in one NonZero pass.
     val unionAll     : seq<Kontur> -> Kontur
     /// Same as above with an explicit tolerance instead of Kontur.defaultTolerance
     val unionWith        : tolerance: float -> subject: Kontur -> clip: Kontur -> Kontur
@@ -533,7 +533,7 @@ and the residual crossings described in section 2 are not resolved.
 ## 8. Testing
 
 - Scriptorium (Quill for the test DSL, Nib for the assertions) runs the same test files unchanged on .NET and on Node.
-- Oracle tests: for random points, `result.Contains pt` must equal `combine op (subject.Contains pt) (clip.Contains pt)` for points farther than `tolerance` from any input edge. This tests the region, not the contour shape, and catches almost every bug in phases 2 to 8.
+- Oracle tests: for random points, `result.Contains pt` must equal `combine op (subject.Contains pt) (clip.Contains pt)` for points farther than `tolerance` from any input edge. This tests the region, not its contour decomposition, and catches almost every bug in phases 2 to 8.
 - Area tests: `area (A union B) = area A + area B - area (A intersect B)`, xor and difference likewise.
 - Winding propagation against per edge ray casting on every test input.
 - Degenerate fixtures: squares sharing an edge, sharing a vertex, identical squares, one square inside another, a spike, a figure eight under each fill rule, a star polygon under NonZero and EvenOdd, coincident opposite edges that cancel, three segments through nearly one point, vertices within tolerance of an edge, all with both orientations.
