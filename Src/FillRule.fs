@@ -8,7 +8,8 @@ type internal OPT = Runtime.InteropServices.OptionalAttribute
 /// Shorthand for the DefaultParameterValueAttribute on method arguments.
 type internal DEF = Runtime.InteropServices.DefaultParameterValueAttribute
 
-/// <summary>How the winding number of a point decides whether the point is inside a Kontur.
+/// On Euclid.Kontur.
+/// Determines how the winding number of a point decides whether the point is inside a Kontur.///
 /// The winding number counts how often the paths of a Kontur wind around a point,
 /// counter clockwise turns count +1, clockwise turns count -1.
 /// The fill rule belongs to the Kontur, not to the boolean operation, unlike in Clipper.
@@ -17,7 +18,7 @@ type internal DEF = Runtime.InteropServices.DefaultParameterValueAttribute
 /// conflict, they are two independent decisions.
 /// What this buys is one pass instead of two: an EvenOdd glyph unioned with a NonZero CAD outline
 /// works in one operation. With a fill rule per operation the glyph would have to be simplified
-/// first, then unioned.</summary>
+/// first, then unioned.
 type FillRule =
     /// A point is inside if the winding number is odd. The orientation of the paths does not matter.
     /// This is the rule of fonts and of SVG's 'evenodd'. A path inside a path is a hole, a path inside that is filled again.
@@ -33,6 +34,7 @@ type FillRule =
     /// Needs consistently oriented paths: clockwise outer boundaries, counter clockwise holes.
     | Negative = 3
 
+/// On Euclid.Kontur.
 /// The kind of boolean operation between a subject and a clip Kontur.
 type ClipType =
     /// Everything that is inside the subject or inside the clip.
@@ -44,7 +46,7 @@ type ClipType =
     /// Everything that is inside exactly one of subject and clip.
     | Xor          = 3
 
-/// Functions on the FillRule enum.
+/// Functions on the Euclid.Kontur.FillRule enum.
 module FillRule =
 
     /// Applies the fill rule to a winding number.
@@ -55,7 +57,7 @@ module FillRule =
         elif rule = FillRule.Positive then windingNumber > 0
         else                               windingNumber < 0
 
-/// Functions on the ClipType enum.
+/// Functions on the Euclid.Kontur.ClipType enum.
 module ClipType =
 
     /// Combines the inside test of the subject and of the clip according to the operation.
