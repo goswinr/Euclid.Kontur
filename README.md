@@ -70,6 +70,31 @@ and use `FillRule.Positive`. `SignedArea` gives the net area of a result, subtra
 For an unsimplified input `Kontur` with overlapping paths, its sum of signed areas need not equal
 the area of the filled region.
 
+## Directly on Polyline2D
+
+For single closed polylines the same operations are extension members of `Polyline2D`, so no
+`Kontur` has to be created. They are available as soon as `Euclid` is opened:
+
+```fsharp
+let p = a.Paths.[0] // the closed Polyline2Ds of the rectangles above
+let q = b.Paths.[0]
+
+let merged : ResizeArray<Polyline2D> = p.Union q
+let overlap = p.Intersection q
+let cut = p.Difference q // p minus q
+let exclusive = p.Xor q
+let cleaned = p.Simplify ()
+let all = p.UnionMany [ q ] // this polyline with any number of others
+
+let mergedAtTolerance = p.UnionWith 1e-4 q // every member has a ...With variant
+let alsoMerged = Polyline2D.union p q // and a static function: union, unionWith, unionMany, ...
+```
+
+Each polyline is one region under the `NonZero` fill rule, so its orientation does not matter.
+The result is a `ResizeArray<Polyline2D>` because one operation can return several contours and
+holes, oriented like the paths of a result `Kontur`. Use a `Kontur` for other fill rules, for
+regions made of several paths, or to feed a result into the next operation.
+
 ## Fill rules and multiple paths
 
 Each `Kontur` has its own fill rule: `NonZero`, `EvenOdd`, `Positive` or `Negative`. Subject and

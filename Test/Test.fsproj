@@ -18,6 +18,7 @@
     <Compile Include="TestBvh.fs" />
     <Compile Include="TestEngine.fs" />
     <Compile Include="TestKlip.fs" />
+    <Compile Include="TestPolyline2D.fs" />
     <Compile Include="Bench.fs" />    <!-- not a test: the benchmark fixtures, shared by the .NET and the Node benchmark script -->
     <Compile Include="TestMain.fs" />
   </ItemGroup>

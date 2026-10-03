@@ -135,6 +135,31 @@ type KonturEngine (tolerance: float) =
 
 `tolerance` is absolute, in the units of the coordinates. Default `1e-6`.
 
+For single closed polylines the same wrappers exist as extension members of `Polyline2D`, so the
+caller never has to create a `Kontur`:
+
+```fsharp
+type Polyline2D with
+    member Union        : other: Polyline2D -> ResizeArray<Polyline2D>
+    member Intersection : other: Polyline2D -> ResizeArray<Polyline2D>
+    member Difference   : other: Polyline2D -> ResizeArray<Polyline2D>   // this minus other
+    member Xor          : other: Polyline2D -> ResizeArray<Polyline2D>
+    member Simplify     : unit -> ResizeArray<Polyline2D>
+    /// Union of this Polyline2D with many others, through KonturEngine.UnionAll.
+    member UnionMany    : others: seq<Polyline2D> -> ResizeArray<Polyline2D>
+    /// Same as above with an explicit tolerance.
+    member UnionWith    : tolerance: float -> other: Polyline2D -> ResizeArray<Polyline2D>
+    ...
+    /// And the same again as static functions.
+    static member union     : subject: Polyline2D -> clip: Polyline2D -> ResizeArray<Polyline2D>
+    static member unionMany : seq<Polyline2D> -> ResizeArray<Polyline2D>
+    ...
+```
+
+Each polyline becomes a `Kontur.createSingleton` under `NonZero`, so its orientation does not matter.
+The result is the `Paths` of the result `Kontur`. A list of polylines and not one polyline, because
+an operation can return several contours and holes.
+
 ## 4. Pipeline
 
 Every phase reads and writes flat arrays owned by the engine. Indices, not objects, refer to
@@ -564,6 +589,7 @@ Src/Winding.fs              phase 6, ray cast
 Src/Link.fs                 phases 7 and 8
 Src/Engine.fs               KonturEngine, owns every buffer, runs the phases
 Src/KonturModule.fs          public companion module of convenience functions
+Src/Polyline2DExtensions.fs the same convenience functions as extension members of Polyline2D
 Test/                       Scriptorium.Quill + Scriptorium.Nib, fixtures, oracle tests, benchmarks
 Docs/                       fsdocs, plus the SVG visualisation (pending)
 ```

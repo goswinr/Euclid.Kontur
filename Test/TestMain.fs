@@ -24,4 +24,5 @@ let main _ =
         TestBvh.tests
         TestEngine.tests
         TestKlip.tests
+        TestPolyline2D.tests
         ])
