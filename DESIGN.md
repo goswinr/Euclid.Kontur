@@ -91,7 +91,7 @@ type Kontur =
     member IsEmpty : bool
 
     static member create : paths: seq<Polyline2D> * fillRule: FillRule -> Kontur
-    static member ofPolyline : Polyline2D * ?fillRule: FillRule -> Kontur   // default NonZero
+    static member createSingleton : Polyline2D * ?fillRule: FillRule -> Kontur   // default NonZero
 ```
 
 The docstring above is part of the design: the reason for the fill rule living on the `Kontur`

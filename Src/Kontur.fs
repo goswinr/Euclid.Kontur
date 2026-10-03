@@ -99,8 +99,8 @@ type Kontur private (paths: ResizeArray<Polyline2D>, fillRule: FillRule) =
     /// <param name="path">The closed Polyline2D. It must have its first point repeated as last point and at least three distinct points.</param>
     /// <param name="fillRule">Optional, FillRule.NonZero by default. How the winding number decides what is inside.</param>
     /// <returns>A new Kontur with one path.</returns>
-    static member ofPolyline (path: Polyline2D, [<OPT;DEF(FillRule.NonZero)>] fillRule: FillRule) : Kontur =
-        Kontur.checkPath "ofPolyline" 0 path
+    static member createSingleton (path: Polyline2D, [<OPT;DEF(FillRule.NonZero)>] fillRule: FillRule) : Kontur =
+        Kontur.checkPath "createSingleton" 0 path
         let ps = ResizeArray<Polyline2D> 1
         ps.Add path
         Kontur (ps, fillRule)

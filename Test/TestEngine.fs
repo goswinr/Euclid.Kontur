@@ -85,8 +85,8 @@ let tests =
     testList ("Engine", [
 
         test ("two overlapping squares", fun _ ->
-            let a = Kontur.ofPolyline (square 0.0 0.0 10.0)
-            let b = Kontur.ofPolyline (square 5.0 5.0 10.0)
+            let a = Kontur.createSingleton (square 0.0 0.0 10.0)
+            let b = Kontur.createSingleton (square 5.0 5.0 10.0)
             let uni = Kontur.union a b
             checkResult uni
             assertThat uni.PathCount (tag "union is one contour" >> isEqualTo 1)
@@ -106,8 +106,8 @@ let tests =
         )
 
         test ("disjoint squares", fun _ ->
-            let a = Kontur.ofPolyline (square 0.0 0.0 1.0)
-            let b = Kontur.ofPolyline (square 5.0 5.0 1.0)
+            let a = Kontur.createSingleton (square 0.0 0.0 1.0)
+            let b = Kontur.createSingleton (square 5.0 5.0 1.0)
             let uni = Kontur.union a b
             assertThat uni.PathCount (tag "union keeps both" >> isEqualTo 2)
             assertThat (area uni) (tag "union area" >> isCloseTo Accuracy.high 2.0)
@@ -117,8 +117,8 @@ let tests =
         )
 
         test ("square minus nested square gives a hole", fun _ ->
-            let a = Kontur.ofPolyline (square 0.0 0.0 10.0)
-            let b = Kontur.ofPolyline (square 3.0 3.0 4.0)
+            let a = Kontur.createSingleton (square 0.0 0.0 10.0)
+            let b = Kontur.createSingleton (square 3.0 3.0 4.0)
             let diff = Kontur.difference a b
             checkResult diff
             assertThat diff.PathCount (tag "outer and hole" >> isEqualTo 2)
@@ -134,8 +134,8 @@ let tests =
         )
 
         test ("identical squares", fun _ ->
-            let a = Kontur.ofPolyline (square 0.0 0.0 10.0)
-            let b = Kontur.ofPolyline (square 0.0 0.0 10.0)
+            let a = Kontur.createSingleton (square 0.0 0.0 10.0)
+            let b = Kontur.createSingleton (square 0.0 0.0 10.0)
             assertThat (area (Kontur.union a b)) (tag "union" >> isCloseTo Accuracy.high 100.0)
             assertThat (Kontur.union a b).PathCount (tag "union is one path" >> isEqualTo 1)
             assertThat (area (Kontur.intersection a b)) (tag "intersection" >> isCloseTo Accuracy.high 100.0)
@@ -144,8 +144,8 @@ let tests =
         )
 
         test ("squares sharing an edge", fun _ ->
-            let a = Kontur.ofPolyline (square 0.0 0.0 10.0)
-            let b = Kontur.ofPolyline (square 10.0 0.0 10.0)
+            let a = Kontur.createSingleton (square 0.0 0.0 10.0)
+            let b = Kontur.createSingleton (square 10.0 0.0 10.0)
             let uni = Kontur.union a b
             checkResult uni
             assertThat uni.PathCount (tag "one contour" >> isEqualTo 1)
@@ -156,8 +156,8 @@ let tests =
         )
 
         test ("squares touching at a corner stay two contours", fun _ ->
-            let a = Kontur.ofPolyline (square 0.0 0.0 10.0)
-            let b = Kontur.ofPolyline (square 10.0 10.0 10.0)
+            let a = Kontur.createSingleton (square 0.0 0.0 10.0)
+            let b = Kontur.createSingleton (square 10.0 10.0 10.0)
             let uni = Kontur.union a b
             checkResult uni
             assertThat uni.PathCount (tag "two contours" >> isEqualTo 2)
@@ -167,13 +167,13 @@ let tests =
         test ("bowtie simplifies into two lobes under both rules", fun _ ->
             let bowtie = poly [ (0.0, 0.0); (10.0, 10.0); (10.0, 0.0); (0.0, 10.0) ]
             for rule in [ FillRule.NonZero; FillRule.EvenOdd ] do
-                let r = Kontur.simplify (Kontur.ofPolyline (bowtie, rule))
+                let r = Kontur.simplify (Kontur.createSingleton (bowtie, rule))
                 checkResult r
                 assertThat r.PathCount (tag $"two lobes under {rule}" >> isEqualTo 2)
                 assertThat (area r) (tag $"area under {rule}" >> isCloseTo Accuracy.high 50.0)
                 for p in r.Paths do
                     assertThat p.SignedArea (tag "both lobes are counter clockwise" >> isGreaterThan 0.0)
-            let r = Kontur.simplify (Kontur.ofPolyline (bowtie, FillRule.Positive))
+            let r = Kontur.simplify (Kontur.createSingleton (bowtie, FillRule.Positive))
             assertThat r.PathCount (tag "only the counter clockwise lobe under Positive" >> isEqualTo 1)
             assertThat (area r) (tag "area under Positive" >> isCloseTo Accuracy.high 25.0)
         )
@@ -183,8 +183,8 @@ let tests =
                                 let a = Math.PI / 2.0 + float (i * 2) * 2.0 * Math.PI / 5.0
                                 (10.0 * cos a, 10.0 * sin a) ]
             let center = Pt (0.0, 0.0)
-            let nonZero = Kontur.simplify (Kontur.ofPolyline (star, FillRule.NonZero))
-            let evenOdd = Kontur.simplify (Kontur.ofPolyline (star, FillRule.EvenOdd))
+            let nonZero = Kontur.simplify (Kontur.createSingleton (star, FillRule.NonZero))
+            let evenOdd = Kontur.simplify (Kontur.createSingleton (star, FillRule.EvenOdd))
             checkResult nonZero
             checkResult evenOdd
             assertThat nonZero.PathCount (tag "non zero fills the center" >> isEqualTo 1)
@@ -199,7 +199,7 @@ let tests =
         test ("an even odd glyph unioned with a non zero outline in one pass", fun _ ->
             // a letter O: outer and inner square with the same orientation, a hole only under EvenOdd
             let glyph = Kontur.create ([ square 0.0 0.0 10.0; square 3.0 3.0 4.0 ], FillRule.EvenOdd)
-            let bar = Kontur.ofPolyline (square 8.0 4.0 10.0, FillRule.NonZero)
+            let bar = Kontur.createSingleton (square 8.0 4.0 10.0, FillRule.NonZero)
             let uni = Kontur.union glyph bar
             checkResult uni
             assertThat (uni.Contains (Pt (5.0, 5.0)))  (tag "the hole of the glyph survives" >> isFalse)
@@ -213,8 +213,8 @@ let tests =
         )
 
         test ("input vertices come out unchanged", fun _ ->
-            let a = Kontur.ofPolyline (poly [ (0.1, 0.2); (10.3, 0.7); (9.9, 10.1); (0.4, 9.6) ])
-            let b = Kontur.ofPolyline (poly [ (5.5, 5.5); (15.5, 5.7); (15.1, 15.3); (5.2, 15.4) ])
+            let a = Kontur.createSingleton (poly [ (0.1, 0.2); (10.3, 0.7); (9.9, 10.1); (0.4, 9.6) ])
+            let b = Kontur.createSingleton (poly [ (5.5, 5.5); (15.5, 5.7); (15.1, 15.3); (5.2, 15.4) ])
             let uni = Kontur.union a b
             let resultXYs = [ for p in uni.Paths do for i in 0 .. p.PointCount - 2 do (p.GetX i, p.GetY i) ]
             for (x, y) in [ (0.1, 0.2); (10.3, 0.7); (0.4, 9.6); (15.5, 5.7); (15.1, 15.3); (5.2, 15.4) ] do
@@ -223,8 +223,8 @@ let tests =
         )
 
         test ("a vertex within tolerance of an edge snaps onto it", fun _ ->
-            let a = Kontur.ofPolyline (square 0.0 0.0 10.0)
-            let b = Kontur.ofPolyline (poly [ (5.0, 10.0 + 1e-9); (15.0, 12.0); (15.0, 20.0); (5.0, 20.0) ]) // touches the top edge of a within tolerance
+            let a = Kontur.createSingleton (square 0.0 0.0 10.0)
+            let b = Kontur.createSingleton (poly [ (5.0, 10.0 + 1e-9); (15.0, 12.0); (15.0, 20.0); (5.0, 20.0) ]) // touches the top edge of a within tolerance
             let uni = Kontur.union a b
             checkResult uni
             assertThat uni.PathCount (tag "the shapes touch at one vertex, so the union is two contours meeting there" >> isEqualTo 2)
@@ -237,7 +237,7 @@ let tests =
         )
 
         test ("empty shapes", fun _ ->
-            let a = Kontur.ofPolyline (square 0.0 0.0 10.0)
+            let a = Kontur.createSingleton (square 0.0 0.0 10.0)
             let e = Kontur.empty FillRule.NonZero
             assertThat (area (Kontur.union a e)) (tag "a union empty" >> isCloseTo Accuracy.high 100.0)
             assertThat (area (Kontur.union e a)) (tag "empty union a" >> isCloseTo Accuracy.high 100.0)
@@ -250,9 +250,9 @@ let tests =
         test ("unionAll merges many shapes with mixed rules", fun _ ->
             let shapes =
                 [ Kontur.create ([ square 0.0 0.0 10.0; square 3.0 3.0 4.0 ], FillRule.EvenOdd)
-                  Kontur.ofPolyline (square 8.0 0.0 10.0)
-                  Kontur.ofPolyline ((square 30.0 30.0 5.0).Reverse (), FillRule.NonZero)
-                  Kontur.ofPolyline (square 4.0 4.0 2.0) ]
+                  Kontur.createSingleton (square 8.0 0.0 10.0)
+                  Kontur.createSingleton ((square 30.0 30.0 5.0).Reverse (), FillRule.NonZero)
+                  Kontur.createSingleton (square 4.0 4.0 2.0) ]
             let all = Kontur.unionAll shapes
             checkResult all
             assertThat (all.Contains (Pt (5.0, 5.0)))   (tag "the small square fills the hole" >> isTrue)
@@ -265,8 +265,8 @@ let tests =
             let rand = Random 11
             let engine = KonturEngine 1e-6
             for i in 1 .. 25 do
-                let a = Kontur.ofPolyline (randomStar rand 0.0 0.0 10.0 (5 + rand.Next 20) (i % 2 = 0), FillRule.NonZero)
-                let b = Kontur.ofPolyline (randomStar rand (rand.NextDouble () * 10.0) (rand.NextDouble () * 10.0) 8.0 (5 + rand.Next 20) (i % 3 = 0), FillRule.NonZero)
+                let a = Kontur.createSingleton (randomStar rand 0.0 0.0 10.0 (5 + rand.Next 20) (i % 2 = 0), FillRule.NonZero)
+                let b = Kontur.createSingleton (randomStar rand (rand.NextDouble () * 10.0) (rand.NextDouble () * 10.0) 8.0 (5 + rand.Next 20) (i % 3 = 0), FillRule.NonZero)
                 checkAll rand engine a b
         )
 
@@ -276,8 +276,8 @@ let tests =
             for i in 1 .. 25 do
                 let ruleA = if i % 2 = 0 then FillRule.NonZero else FillRule.EvenOdd
                 let ruleB = if i % 3 = 0 then FillRule.NonZero else FillRule.EvenOdd
-                let a = Kontur.ofPolyline (randomTangle rand 0.0 0.0 10.0 (4 + rand.Next 10), ruleA)
-                let b = Kontur.ofPolyline (randomTangle rand 3.0 3.0 10.0 (4 + rand.Next 10), ruleB)
+                let a = Kontur.createSingleton (randomTangle rand 0.0 0.0 10.0 (4 + rand.Next 10), ruleA)
+                let b = Kontur.createSingleton (randomTangle rand 3.0 3.0 10.0 (4 + rand.Next 10), ruleB)
                 checkAll rand engine a b
         )
 
@@ -294,34 +294,34 @@ let tests =
             let rand = Random 14
             let engine = KonturEngine 1e-6
             for _ in 1 .. 20 do
-                let a = Kontur.ofPolyline (randomTangle rand 0.0 0.0 10.0 (4 + rand.Next 8))
-                let b = Kontur.ofPolyline (randomStar rand 2.0 2.0 9.0 (4 + rand.Next 8) true)
+                let a = Kontur.createSingleton (randomTangle rand 0.0 0.0 10.0 (4 + rand.Next 8))
+                let b = Kontur.createSingleton (randomStar rand 2.0 2.0 9.0 (4 + rand.Next 8) true)
                 engine.Execute (a, b, ClipType.Xor) |> ignore
                 Graph.validate engine.State
         )
 
         test ("degenerate inputs", fun _ ->
             // all points collinear, zero area:
-            let flat = Kontur.ofPolyline (poly [ (0.0, 0.0); (5.0, 0.0); (10.0, 0.0); (5.0, 0.0) ])
+            let flat = Kontur.createSingleton (poly [ (0.0, 0.0); (5.0, 0.0); (10.0, 0.0); (5.0, 0.0) ])
             assertThat (Kontur.simplify flat).IsEmpty (tag "a flat polygon has no area" >> isTrue)
-            assertThat (area (Kontur.union flat (Kontur.ofPolyline (square 0.0 0.0 4.0)))) (tag "flat polygon adds nothing" >> isCloseTo Accuracy.high 16.0)
+            assertThat (area (Kontur.union flat (Kontur.createSingleton (square 0.0 0.0 4.0)))) (tag "flat polygon adds nothing" >> isCloseTo Accuracy.high 16.0)
             // duplicate consecutive points and a spike:
-            let spiky = Kontur.ofPolyline (poly [ (0.0, 0.0); (0.0, 0.0); (10.0, 0.0); (10.0, 10.0); (15.0, 15.0); (10.0, 10.0); (0.0, 10.0) ])
+            let spiky = Kontur.createSingleton (poly [ (0.0, 0.0); (0.0, 0.0); (10.0, 0.0); (10.0, 10.0); (15.0, 15.0); (10.0, 10.0); (0.0, 10.0) ])
             let r = Kontur.simplify spiky
             checkResult r
             assertThat (area r) (tag "spike and duplicate removed" >> isCloseTo Accuracy.high 100.0)
             assertThat r.Paths.[0].PointCount (tag "just the square" >> isEqualTo 5)
             // a square traced twice: winding 2, filled under NonZero, empty under EvenOdd
             let twice = poly [ (0.0, 0.0); (10.0, 0.0); (10.0, 10.0); (0.0, 10.0); (0.0, 0.0); (10.0, 0.0); (10.0, 10.0); (0.0, 10.0) ]
-            assertThat (area (Kontur.simplify (Kontur.ofPolyline (twice, FillRule.NonZero)))) (tag "twice under non zero" >> isCloseTo Accuracy.high 100.0)
-            assertThat (Kontur.simplify (Kontur.ofPolyline (twice, FillRule.EvenOdd))).IsEmpty (tag "twice under even odd" >> isTrue)
+            assertThat (area (Kontur.simplify (Kontur.createSingleton (twice, FillRule.NonZero)))) (tag "twice under non zero" >> isCloseTo Accuracy.high 100.0)
+            assertThat (Kontur.simplify (Kontur.createSingleton (twice, FillRule.EvenOdd))).IsEmpty (tag "twice under even odd" >> isTrue)
             // a square and its reverse in one NonZero shape cancel, as two shapes they do not:
             let sq = square 0.0 0.0 10.0
             let both = Kontur.create ([ sq; sq.Reverse () ], FillRule.NonZero)
             assertThat (Kontur.simplify both).IsEmpty (tag "opposite copies cancel under non zero" >> isTrue)
-            assertThat (area (Kontur.union (Kontur.ofPolyline sq) (Kontur.ofPolyline (sq.Reverse ())))) (tag "as separate shapes both count" >> isCloseTo Accuracy.high 100.0)
+            assertThat (area (Kontur.union (Kontur.createSingleton sq) (Kontur.createSingleton (sq.Reverse ())))) (tag "as separate shapes both count" >> isCloseTo Accuracy.high 100.0)
             // tiny polygon below the tolerance:
-            let tiny = Kontur.ofPolyline (square 0.0 0.0 1e-8)
+            let tiny = Kontur.createSingleton (square 0.0 0.0 1e-8)
             assertThat (Kontur.simplify tiny).IsEmpty (tag "smaller than the tolerance vanishes" >> isTrue)
         )
 
@@ -345,8 +345,8 @@ let tests =
             // the edge only passes within tolerance of L, no shared vertex:
             let tri  = poly [ (0.0, 0.0); (10.0, -5.0); (10.0, 5.0) ]
             let quad = poly [ (-0.5, 5e-7 + 5e-8); (5.0, -5e-7); (5.0, 3.0); (1.0, 3.0) ]
-            let a = Kontur.ofPolyline tri
-            let b = Kontur.ofPolyline quad
+            let a = Kontur.createSingleton tri
+            let b = Kontur.createSingleton quad
             let r = Kontur.union a b
             oracle (Random 17) a b ClipType.Union r
             assertThat r.PathCount (tag "passing edge gives one contour" >> isEqualTo 1)
@@ -358,7 +358,7 @@ let tests =
             let engine = KonturEngine 1e-6
             for i in 1 .. 10 do
                 let a = Kontur.create ([ randomStar rand 0.0 0.0 10.0 (5 + rand.Next 20) true; randomStar rand 3.0 1.0 4.0 7 false ], FillRule.NonZero)
-                let b = Kontur.ofPolyline (randomTangle rand 2.0 2.0 9.0 (4 + rand.Next 8), FillRule.EvenOdd)
+                let b = Kontur.createSingleton (randomTangle rand 2.0 2.0 9.0 (4 + rand.Next 8), FillRule.EvenOdd)
                 engine.Execute (a, b, ClipType.Xor) |> ignore
                 let st = engine.State
                 let byPropagation = Array.init st.GCount (fun e -> (st.WindLeftS.[e], st.WindLeftC.[e]))
@@ -374,8 +374,8 @@ let tests =
                         let a = 2.0 * Math.PI * float i / float corners
                         let r = 100.0 * (0.5 + 0.5 * rand.NextDouble ())
                         (cx + r * cos a, cy + r * sin a) ]
-            let a = Kontur.ofPolyline (star 0.0 0.0 3000)
-            let b = Kontur.ofPolyline (star 30.0 20.0 3000)
+            let a = Kontur.createSingleton (star 0.0 0.0 3000)
+            let b = Kontur.createSingleton (star 30.0 20.0 3000)
             let engine = KonturEngine 1e-6
             checkAll rand engine a b
             Graph.validate engine.State
@@ -384,7 +384,7 @@ let tests =
         test ("engine rejects bad tolerances and open paths", fun _ ->
             assertThat (fun () -> KonturEngine -1.0 |> ignore) (tag "negative" >> throws)
             assertThat (fun () -> KonturEngine nan |> ignore) (tag "nan" >> throws)
-            let a = Kontur.ofPolyline (square 0.0 0.0 10.0)
+            let a = Kontur.createSingleton (square 0.0 0.0 10.0)
             a.Paths.[0].SetPt (4, Pt (1.0, 1.0)) // open it after the Kontur was created
             assertThat (fun () -> Kontur.simplify a |> ignore) (tag "opened path fails at execution" >> throws)
         )

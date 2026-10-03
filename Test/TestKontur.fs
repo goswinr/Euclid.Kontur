@@ -28,8 +28,8 @@ let tests =
             assertThat (obj.ReferenceEquals (s.Paths.[0], a)) (tag "paths are not copied" >> isTrue)
         )
 
-        test ("ofPolyline defaults to NonZero", fun _ ->
-            let s = Kontur.ofPolyline (square 0.0 0.0 1.0)
+        test ("createSingleton defaults to NonZero", fun _ ->
+            let s = Kontur.createSingleton (square 0.0 0.0 1.0)
             assertThat s.FillRule (tag "default rule" >> isEqualTo FillRule.NonZero)
             assertThat s.PathCount (tag "one path" >> isEqualTo 1)
         )
@@ -39,7 +39,7 @@ let tests =
             openPath.AddXY (0.0, 0.0)
             openPath.AddXY (1.0, 0.0)
             openPath.AddXY (1.0, 1.0)
-            assertThat (fun () -> Kontur.ofPolyline openPath |> ignore) (tag "open path" >> throws)
+            assertThat (fun () -> Kontur.createSingleton openPath |> ignore) (tag "open path" >> throws)
             let short = Polyline2D 3
             short.AddXY (0.0, 0.0)
             short.AddXY (1.0, 0.0)
@@ -81,10 +81,10 @@ let tests =
             let ccw = square 0.0 0.0 10.0
             let cw = ccw.Reverse ()
             let pt = Pt (5.0, 5.0)
-            assertThat ((Kontur.ofPolyline (ccw, FillRule.Positive)).Contains pt) (tag "ccw positive" >> isTrue)
-            assertThat ((Kontur.ofPolyline (ccw, FillRule.Negative)).Contains pt) (tag "ccw negative" >> isFalse)
-            assertThat ((Kontur.ofPolyline (cw,  FillRule.Positive)).Contains pt) (tag "cw positive" >> isFalse)
-            assertThat ((Kontur.ofPolyline (cw,  FillRule.Negative)).Contains pt) (tag "cw negative" >> isTrue)
+            assertThat ((Kontur.createSingleton (ccw, FillRule.Positive)).Contains pt) (tag "ccw positive" >> isTrue)
+            assertThat ((Kontur.createSingleton (ccw, FillRule.Negative)).Contains pt) (tag "ccw negative" >> isFalse)
+            assertThat ((Kontur.createSingleton (cw,  FillRule.Positive)).Contains pt) (tag "cw positive" >> isFalse)
+            assertThat ((Kontur.createSingleton (cw,  FillRule.Negative)).Contains pt) (tag "cw negative" >> isTrue)
         )
 
         test ("SignedArea sums the paths", fun _ ->

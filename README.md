@@ -44,7 +44,7 @@ let rectangle x y width height =
             Pt (x, y + height)
         ]
     path.CloseInPlace 0.0
-    Kontur.ofPolyline path // NonZero fill rule by default
+    Kontur.createSingleton path // NonZero fill rule by default
 
 let a = rectangle 0.0 0.0 10.0 10.0
 let b = rectangle 5.0 0.0 10.0 10.0

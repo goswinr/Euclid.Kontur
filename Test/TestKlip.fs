@@ -739,11 +739,11 @@ let tests =
             assertThat (fun () -> Kontur.create ([ square 0.0 0.0 10.0; Polyline2D 0 ], FillRule.NonZero) |> ignore) (tag "empty path in create" >> throws)
             let single = Polyline2D 1
             single.AddXY (10.0, 10.0)
-            assertThat (fun () -> Kontur.ofPolyline single |> ignore) (tag "single point path" >> throws)
+            assertThat (fun () -> Kontur.createSingleton single |> ignore) (tag "single point path" >> throws)
             let two = Polyline2D 2
             two.AddXY (0.0, 0.0)
             two.AddXY (10.0, 10.0)
-            assertThat (fun () -> Kontur.ofPolyline two |> ignore) (tag "two point path" >> throws)
+            assertThat (fun () -> Kontur.createSingleton two |> ignore) (tag "two point path" >> throws)
         )
 
         test ("non finite coordinates are rejected and the engine recovers", fun _ ->
@@ -770,8 +770,8 @@ let tests =
             assertThat [ neg.SignedArea; pos.SignedArea ] (tag "the orientations are unchanged" >> isEqualTo areasBefore)
             let oriented = unionSelfChecked [ neg ]
             assertThat (absArea oriented) (tag "a clockwise square counts after the orientation check" >> isCloseTo Accuracy.high 100.0)
-            assertThat (absArea (Kontur.simplify (Kontur.ofPolyline (pos, FillRule.Positive)))) (tag "self intersections removed under Positive" >> isCloseTo Accuracy.high 100.0)
-            assertThat (absArea (Kontur.simplify (Kontur.ofPolyline (neg, FillRule.Negative)))) (tag "self intersections removed under Negative" >> isCloseTo Accuracy.high 100.0)
+            assertThat (absArea (Kontur.simplify (Kontur.createSingleton (pos, FillRule.Positive)))) (tag "self intersections removed under Positive" >> isCloseTo Accuracy.high 100.0)
+            assertThat (absArea (Kontur.simplify (Kontur.createSingleton (neg, FillRule.Negative)))) (tag "self intersections removed under Negative" >> isCloseTo Accuracy.high 100.0)
         )
 
         // ---------------------- polygons.test.ts: the 195 Clipper2 fixtures ----------------------
