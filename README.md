@@ -76,6 +76,32 @@ Each `Kontur` has its own fill rule: `NonZero`, `EvenOdd`, `Positive` or `Negati
 clip winding numbers are evaluated separately, so regions with different rules can be combined
 in one operation. For example, an `EvenOdd` outline can be cut from a `NonZero` solid.
 
+The winding number counts how often the paths wind around a point. In Cartesian coordinates
+(positive Y upwards), counterclockwise turns contribute `+1` and clockwise turns contribute `-1`.
+`EvenOdd` ignores path direction. `NonZero` fills overlaps with the same direction, while opposite
+directions can cancel to form holes. Reversing all paths leaves `EvenOdd` and `NonZero` unchanged
+and swaps the regions filled by `Positive` and `Negative`.
+
+**EvenOdd** fills regions whose winding number is odd.
+
+![EvenOdd fill rule: only regions with odd winding numbers are filled](https://ishape-rust.github.io/iShape-js/overlay/filling_rules/even-odd.svg)
+
+**NonZero** fills regions whose winding number is not zero.
+
+![NonZero fill rule: all regions with nonzero winding numbers are filled](https://ishape-rust.github.io/iShape-js/overlay/filling_rules/non-zero.svg)
+
+**Positive** fills regions whose winding number is greater than zero. For simple nested paths,
+use counterclockwise outer boundaries and clockwise holes.
+
+![Positive fill rule: only regions with positive winding numbers are filled](https://ishape-rust.github.io/iShape-js/overlay/filling_rules/positive.svg)
+
+**Negative** fills regions whose winding number is less than zero. For simple nested paths,
+use clockwise outer boundaries and counterclockwise holes.
+
+![Negative fill rule: only regions with negative winding numbers are filled](https://ishape-rust.github.io/iShape-js/overlay/filling_rules/negative.svg)
+
+Illustrations credit: [iShape / iShape-js, Filling Rules](https://ishape-rust.github.io/iShape-js/overlay/filling_rules/filling_rules.html).
+
 Using the rectangles from the quick start:
 
 ```fsharp
