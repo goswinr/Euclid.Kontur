@@ -40,47 +40,47 @@ type internal Bvh (leafSize: int) =
     // per item, indexed by item id. Only the first ItemCount entries are valid:
 
     /// The minimum X of each item's rectangle.
-    member val MinX : float[] = Array.zeroCreate 0 with get, set
+    member val MinX : float[] = [||] with get, set
     /// The minimum Y of each item's rectangle.
-    member val MinY : float[] = Array.zeroCreate 0 with get, set
+    member val MinY : float[] = [||] with get, set
     /// The maximum X of each item's rectangle.
-    member val MaxX : float[] = Array.zeroCreate 0 with get, set
+    member val MaxX : float[] = [||] with get, set
     /// The maximum Y of each item's rectangle.
-    member val MaxY : float[] = Array.zeroCreate 0 with get, set
+    member val MaxY : float[] = [||] with get, set
     /// The count of items in the tree.
     member val ItemCount : int = 0 with get, set
 
     // per node, flattened, the root is node 0. Only the first NodeCount entries are valid:
 
     /// The minimum X of the rectangle around everything below each node.
-    member val NodeMinX : float[] = Array.zeroCreate 0 with get, set
+    member val NodeMinX : float[] = [||] with get, set
     /// The minimum Y of the rectangle around everything below each node.
-    member val NodeMinY : float[] = Array.zeroCreate 0 with get, set
+    member val NodeMinY : float[] = [||] with get, set
     /// The maximum X of the rectangle around everything below each node.
-    member val NodeMaxX : float[] = Array.zeroCreate 0 with get, set
+    member val NodeMaxX : float[] = [||] with get, set
     /// The maximum Y of the rectangle around everything below each node.
-    member val NodeMaxY : float[] = Array.zeroCreate 0 with get, set
+    member val NodeMaxY : float[] = [||] with get, set
     /// For a leaf node the start index into ItemIndices, otherwise the index of the left child node.
-    member val NodeLeftOrStart : int[] = Array.zeroCreate 0 with get, set
+    member val NodeLeftOrStart : int[] = [||] with get, set
     /// The index of the right child node. -1 for a leaf node.
-    member val NodeRightChild : int[] = Array.zeroCreate 0 with get, set
+    member val NodeRightChild : int[] = [||] with get, set
     /// The count of items in a leaf node. 0 for an internal node.
-    member val NodeItemCount : int[] = Array.zeroCreate 0 with get, set
+    member val NodeItemCount : int[] = [||] with get, set
     /// The count of nodes in the tree. 0 if the tree is empty or not built yet.
     member val NodeCount : int = 0 with get, set
     /// The depth of the tree, 1 for a tree with only a root leaf, 0 if empty.
     member val Depth : int = 0 with get, set
 
     /// The permutation of item ids. A leaf owns the range ItemIndices.[start .. start + count - 1].
-    member val ItemIndices : int[] = Array.zeroCreate 0 with get, set
+    member val ItemIndices : int[] = [||] with get, set
     /// Scratch space for the split keys while building, parallel to ItemIndices.
-    member val Keys : float[] = Array.zeroCreate 0 with get, set
+    member val Keys : float[] = [||] with get, set
     /// Scratch stack of node indices for the single tree queries.
-    member val Stack : int[] = Array.zeroCreate 0 with get, set
+    member val Stack : int[] = [||] with get, set
     /// Scratch stack of first node indices for the dual tree queries.
-    member val StackA : int[] = Array.zeroCreate 0 with get, set
+    member val StackA : int[] = [||] with get, set
     /// Scratch stack of second node indices for the dual tree queries.
-    member val StackB : int[] = Array.zeroCreate 0 with get, set
+    member val StackB : int[] = [||] with get, set
 
     /// Prepares the tree for itemCount items, growing the item arrays if needed.
     /// The rectangles are undefined afterwards, set them all with SetRect before calling Build.

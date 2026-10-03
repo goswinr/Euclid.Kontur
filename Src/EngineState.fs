@@ -15,38 +15,38 @@ type internal EngineState (tolerance: float) =
     // ---------------------- phase 1, ingest: vertices, paths and input segments ----------------------
 
     /// Interleaved vertex coordinates x0 y0 x1 y1 ... Input vertices first, intersection vertices appended after them.
-    member val XY : float[] = Array.zeroCreate 0 with get, set
+    member val XY : float[] = [||] with get, set
     /// The count of vertices, input and intersection vertices together.
     member val VertexCount : int = 0 with get, set
     /// The count of input vertices. Vertex ids below this are input vertices, ids from here on are intersection points.
     member val InputVertexCount : int = 0 with get, set
 
     /// The first vertex id of each path, with one extra entry holding the total count. Length PathCount + 1.
-    member val PathStart : int[] = Array.zeroCreate 0 with get, set
+    member val PathStart : int[] = [||] with get, set
     /// The group of each path: 0 subject, 1 clip.
-    member val PathGroup : int[] = Array.zeroCreate 0 with get, set
+    member val PathGroup : int[] = [||] with get, set
     /// The count of paths after ingest, paths with fewer than three distinct vertices are dropped.
     member val PathCount : int = 0 with get, set
 
     /// The start vertex id of each input segment.
-    member val SegA : int[] = Array.zeroCreate 0 with get, set
+    member val SegA : int[] = [||] with get, set
     /// The end vertex id of each input segment. The last segment of a path ends at the path's first vertex.
-    member val SegB : int[] = Array.zeroCreate 0 with get, set
+    member val SegB : int[] = [||] with get, set
     /// The group of each input segment: 0 subject, 1 clip.
-    member val SegGroup : int[] = Array.zeroCreate 0 with get, set
+    member val SegGroup : int[] = [||] with get, set
     /// The count of input segments.
     member val SegCount : int = 0 with get, set
 
     /// The minimum X of each input segment's rectangle, expanded by the tolerance.
-    member val SegMinX : float[] = Array.zeroCreate 0 with get, set
+    member val SegMinX : float[] = [||] with get, set
     /// The minimum Y of each input segment's rectangle, expanded by the tolerance.
-    member val SegMinY : float[] = Array.zeroCreate 0 with get, set
+    member val SegMinY : float[] = [||] with get, set
     /// The maximum X of each input segment's rectangle, expanded by the tolerance.
-    member val SegMaxX : float[] = Array.zeroCreate 0 with get, set
+    member val SegMaxX : float[] = [||] with get, set
     /// The maximum Y of each input segment's rectangle, expanded by the tolerance.
-    member val SegMaxY : float[] = Array.zeroCreate 0 with get, set
+    member val SegMaxY : float[] = [||] with get, set
     /// Scratch: the segment ids sorted by the minimum X of their rectangle, for the sweep of the intersect phase.
-    member val SegOrder : int[] = Array.zeroCreate 0 with get, set
+    member val SegOrder : int[] = [||] with get, set
 
     /// The tree over the input segments, rectangles expanded by the tolerance. Built only by the per edge
     /// ray casting oracle of the tests, the intersect phase itself sweeps the sorted rectangles.
@@ -55,63 +55,63 @@ type internal EngineState (tolerance: float) =
     // ---------------------- phase 2, intersect: split events ----------------------
 
     /// The segment id of each split event.
-    member val EvSeg : int[] = Array.zeroCreate 0 with get, set
+    member val EvSeg : int[] = [||] with get, set
     /// The parameter along the segment of each split event, between 0 and 1.
-    member val EvT : float[] = Array.zeroCreate 0 with get, set
+    member val EvT : float[] = [||] with get, set
     /// The vertex id of each split event, an existing vertex or a new intersection vertex.
-    member val EvVert : int[] = Array.zeroCreate 0 with get, set
+    member val EvVert : int[] = [||] with get, set
     /// The count of split events.
     member val EvCount : int = 0 with get, set
     /// The events of segment s are EvOrder.[EvStart.[s] .. EvStart.[s+1] - 1], sorted by parameter. Length SegCount + 1.
-    member val EvStart : int[] = Array.zeroCreate 0 with get, set
+    member val EvStart : int[] = [||] with get, set
     /// Event ids grouped by segment, see EvStart.
-    member val EvOrder : int[] = Array.zeroCreate 0 with get, set
+    member val EvOrder : int[] = [||] with get, set
 
     // ---------------------- phase 3, split: sub segments before clustering ----------------------
 
     /// The start vertex of each sub segment, in path direction.
-    member val EFrom : int[] = Array.zeroCreate 0 with get, set
+    member val EFrom : int[] = [||] with get, set
     /// The end vertex of each sub segment, in path direction.
-    member val ETo : int[] = Array.zeroCreate 0 with get, set
+    member val ETo : int[] = [||] with get, set
     /// The group of each sub segment: 0 subject, 1 clip.
-    member val EGroup : int[] = Array.zeroCreate 0 with get, set
+    member val EGroup : int[] = [||] with get, set
     /// Per sub segment after clustering: 1 if the path direction runs from the lower to the higher vertex id, -1 otherwise.
-    member val EDir : int[] = Array.zeroCreate 0 with get, set
+    member val EDir : int[] = [||] with get, set
     /// The count of sub segments.
     member val ECount : int = 0 with get, set
 
     // ---------------------- phase 4, cluster: vertices within tolerance ----------------------
 
     /// Scratch: the grid column of each vertex, floor of X over twice the tolerance, for the sweep of the cluster phase.
-    member val CellCol : float[] = Array.zeroCreate 0 with get, set
+    member val CellCol : float[] = [||] with get, set
     /// Union find parent of each vertex. After the cluster phase Parent.[v] is the representative of v's cluster.
-    member val Parent : int[] = Array.zeroCreate 0 with get, set
+    member val Parent : int[] = [||] with get, set
 
     // ---------------------- phase 5, graph: merged edges and the angular rings ----------------------
 
     /// The lower vertex id of each graph edge.
-    member val GA : int[] = Array.zeroCreate 0 with get, set
+    member val GA : int[] = [||] with get, set
     /// The higher vertex id of each graph edge.
-    member val GB : int[] = Array.zeroCreate 0 with get, set
+    member val GB : int[] = [||] with get, set
     /// The change of the subject winding number when crossing the edge from its right side to its left side, looking from GA to GB.
-    member val GDeltaS : int[] = Array.zeroCreate 0 with get, set
+    member val GDeltaS : int[] = [||] with get, set
     /// The change of the clip winding number when crossing the edge from its right side to its left side, looking from GA to GB.
-    member val GDeltaC : int[] = Array.zeroCreate 0 with get, set
+    member val GDeltaC : int[] = [||] with get, set
     /// The count of graph edges.
     member val GCount : int = 0 with get, set
     /// Scratch permutation for sorting sub segments and events.
-    member val SortIdx : int[] = Array.zeroCreate 0 with get, set
+    member val SortIdx : int[] = [||] with get, set
     /// Scratch: the first position in SortIdx of the sub segments of each lower vertex id, in the counting sort of phase 5a. Length VertexCount + 1.
-    member val EdgeStart : int[] = Array.zeroCreate 0 with get, set
+    member val EdgeStart : int[] = [||] with get, set
 
     /// The pseudo angle of each half edge. Half edge 2e leaves GA.[e] towards GB.[e], half edge 2e+1 leaves GB.[e] towards GA.[e].
-    member val HalfAngle : float[] = Array.zeroCreate 0 with get, set
+    member val HalfAngle : float[] = [||] with get, set
     /// The half edges leaving vertex v are VHalf.[VHalfStart.[v] .. VHalfStart.[v+1] - 1], sorted counter clockwise. Length VertexCount + 1.
-    member val VHalfStart : int[] = Array.zeroCreate 0 with get, set
+    member val VHalfStart : int[] = [||] with get, set
     /// Half edge ids grouped by their origin vertex, see VHalfStart.
-    member val VHalf : int[] = Array.zeroCreate 0 with get, set
+    member val VHalf : int[] = [||] with get, set
     /// The position of each half edge in VHalf.
-    member val RingPos : int[] = Array.zeroCreate 0 with get, set
+    member val RingPos : int[] = [||] with get, set
 
     // ---------------------- phase 6, winding ----------------------
 
@@ -124,25 +124,25 @@ type internal EngineState (tolerance: float) =
     member val RayC : int = 0 with get, set
 
     /// Scratch: the vertex ids sorted by grid column and Y, for the sweep of the cluster phase.
-    member val VertOrder : int[] = Array.zeroCreate 0 with get, set
+    member val VertOrder : int[] = [||] with get, set
     /// Scratch: 1 for every vertex whose ring has been assigned winding numbers.
-    member val VertDone : int[] = Array.zeroCreate 0 with get, set
+    member val VertDone : int[] = [||] with get, set
     /// Scratch: the queue of half edges through which the propagation reaches the next vertices.
-    member val Queue : int[] = Array.zeroCreate 0 with get, set
+    member val Queue : int[] = [||] with get, set
     /// Scratch: the count of half edges pushed onto the queue.
     member val QueueEnd : int = 0 with get, set
 
     /// The subject winding number on the left side of each graph edge, looking from GA to GB. The right side is left minus GDeltaS.
-    member val WindLeftS : int[] = Array.zeroCreate 0 with get, set
+    member val WindLeftS : int[] = [||] with get, set
     /// The clip winding number on the left side of each graph edge, looking from GA to GB. The right side is left minus GDeltaC.
-    member val WindLeftC : int[] = Array.zeroCreate 0 with get, set
+    member val WindLeftC : int[] = [||] with get, set
 
     // ---------------------- phases 7 and 8, select and link ----------------------
 
     /// Per graph edge: 0 not part of the result, 1 part of the result directed GA to GB, -1 directed GB to GA. The inside is on the left.
-    member val EdgeOut : int[] = Array.zeroCreate 0 with get, set
+    member val EdgeOut : int[] = [||] with get, set
     /// Per half edge of a result edge: the half edge that follows it in its contour. -1 if not part of the result.
-    member val Next : int[] = Array.zeroCreate 0 with get, set
+    member val Next : int[] = [||] with get, set
 
     /// Forgets all content but keeps the arrays.
     member s.Clear () : unit =
