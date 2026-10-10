@@ -7,9 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-10
+
 ### Added
 
 - Extension members on `Polyline2D` for boolean operations without creating a `Kontur`: instance members `Union`, `Intersection`, `Difference`, `Xor`, `Simplify` and `UnionMany`, static functions `union`, `intersection`, `difference`, `xor`, `simplify` and `unionMany`, each with a `...With` variant taking an explicit tolerance. Every polyline is one region under `FillRule.NonZero` and the result is a `ResizeArray<Polyline2D>`.
+
+### Changed
+
+- Breaking: renamed `Kontur.ofPolyline` to `Kontur.createSingleton`.
+- Updated to Euclid 0.52.0.
 
 ## [0.1.0] - 2026-09-20
 
