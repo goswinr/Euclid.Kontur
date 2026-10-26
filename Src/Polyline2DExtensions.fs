@@ -1,6 +1,7 @@
 namespace Euclid
 
 open Euclid.EuclidErrors
+open System.ComponentModel
 
 /// When Euclid is opened this module will be auto-opened.
 /// It only contains extension members for type Polyline2D:
@@ -10,7 +11,7 @@ open Euclid.EuclidErrors
 /// All results are simple closed contours: no self intersections, no overlaps, outer contours counter clockwise, holes clockwise.
 /// A fresh engine is created per call. For many operations in a row, for other fill rules or for regions of
 /// several paths use Kontur and KonturEngine.
-[<AutoOpen>]
+[<AutoOpen; EditorBrowsable(EditorBrowsableState.Never)>]
 module AutoOpenPolyline2DKontur =
 
     /// One boolean operation between two closed Polyline2Ds, each under the NonZero fill rule.
