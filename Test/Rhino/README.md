@@ -12,8 +12,3 @@ The scripts reference the compiled library, so build it first: `bridge-repro.fsx
 | ------ | ------- |
 | `bridge-repro.fsx` | The union of two polygons that touch through a narrow bridge, swept over shifts, rotations and scales, with Euclid.Kontur, Klip and Clipper2; draws the results into the Rhino document. |
 | `pick.fsx` | A minimal script that loads Euclid.Kontur and Rhino.Scripting inside Rhino, a starting point for experiments. |
-
-## `../data-Clipper2/`
-
-`Polygons.txt` and `PolytreeHoleOwner2.txt`: the Clipper2 test fixtures, copied from the Klip repository
-(`Test/TypeScript/tests/test-data`). Read by `Test/TestKlip.fs`, which is part of the test suite on .NET and on Node.

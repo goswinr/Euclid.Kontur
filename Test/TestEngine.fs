@@ -496,6 +496,21 @@ let tests =
             checkNearTolerance engine a b
         )
 
+        test ("a segment snapped through a vertex of its own path is rerouted through the crossing on it", fun _ ->
+            // Grid of 2.5 tolerances, shrunk from the random grid cases that failed on eb789f3. The clip is a sliver:
+            // its vertex (8, 2) is 0.22 grid units from its own segment from (9, 2) to (0, 0), so that segment is
+            // snapped through it. Its piece from (8, 2) to (0, 0) then lies on the clip's segment from (0, 0) to (8, 2),
+            // which was split at its crossing (7.2, 1.8) with the subject, while the piece was not. The two collinear
+            // edges overlapped and all four operations failed in the linking. Test/Rhino/no-outgoing-edge.fsx draws it.
+            let engine = KonturEngine 1e-6
+            let a = Kontur.createSingleton (gridPoly 2.5e-6 [ 0, 1; 0, 2; 9, 2 ])
+            let b = Kontur.createSingleton (gridPoly 2.5e-6 [ 9, 2; 0, 0; 8, 2 ])
+            for op in [ ClipType.Union; ClipType.Intersection; ClipType.Difference; ClipType.Xor ] do
+                engine.Execute (a, b, op) |> ignore
+                assertThat engine.State.RepairRounds (tag $"the repair ran for {op}" >> isGreaterThan 0)
+            checkNearTolerance engine a b
+        )
+
         test ("random polygons on a grid of a few tolerances against the point oracle", fun _ ->
             // Every crossing is near other vertices and edges here, so merging and snapping move edges everywhere.
             // A grid spacing of 2.5 tolerances failed in one of six operations before the repair phase existed.
