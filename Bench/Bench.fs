@@ -6,10 +6,10 @@ module Bench
 //   the overlapping pairs, the four circles and the geo scale coordinates
 // - Test/FSharp/Benchmark/Benchmarks.cs: the dense random polygons of 100 and 500 edges
 //
-// This file is part of the Test project, so Fable compiles it to JavaScript together with the tests.
+// This file is the Bench project, so Fable compiles it to JavaScript with: cd Bench && npm run buildJS
 // Both benchmark scripts drive these same fixtures and this same timing harness:
-//   dotnet fsi Test/Scripts/console/bench-fixtures.fsx     (.NET, also against Klip and Clipper2)
-//   node Test/Scripts/console/bench-fixtures.mjs           (Node, also against Klip and clipper2-ts)
+//   dotnet fsi Bench/bench-fixtures.fsx     (.NET, also against Klip and Clipper2)
+//   node Bench/bench-fixtures.mjs           (Node, also against Klip and clipper2-ts)
 // So the two runtimes run the identical workload, which the printed fixture checksum verifies.
 //
 // Not ported, because Euclid.Kontur has no counterpart: the PolyTree cases, the reused instance cases of the

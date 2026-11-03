@@ -1,0 +1,11 @@
+{
+  "type": "module",
+  "scripts": {
+    "buildJS": "dotnet fable Bench.fsproj --outDir _js --noCache --configuration Release",
+    "buildKlipJs": "dotnet fable klipjs/KlipJs.fsproj --outDir klipjs/_js --noCache --noReflection",
+    "build": "dotnet tool restore && npm run buildJS && npm run buildKlipJs"
+  },
+  "devDependencies": {
+    "clipper2-ts": "2.0.1-18"
+  }
+}

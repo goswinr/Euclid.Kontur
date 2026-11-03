@@ -1,5 +1,8 @@
 # 2026-09-19: performance review of the engine and the port of the Klip tests
 
+The paths below are as of that session. The benchmark files have since moved from `Test/` and `Test/Scripts/`
+to `Bench/`, see `Bench/README.md`.
+
 Working notes of one session on the engine of Kontur. Five commits on `main`, on top of `3cd23c0`:
 
 | Commit | Subject |

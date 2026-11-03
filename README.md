@@ -219,8 +219,8 @@ TypeScript declarations.
 
 Benchmarks compare shared fixtures against Klip and Clipper2 on .NET and Klip and clipper2-ts
 on Node. Performance depends on the input and tolerance; see the
-[benchmark instructions](https://github.com/goswinr/Euclid.Kontur/blob/main/Test/Scripts/README.md) and
-[recorded results](https://github.com/goswinr/Euclid.Kontur/blob/main/Notes/2026-09-19-performance-and-klip-tests.md).
+[benchmark instructions](https://github.com/goswinr/Euclid.Kontur/blob/main/Bench/README.md) and
+[recorded results](https://github.com/goswinr/Euclid.Kontur/blob/main/Bench/Notes/2026-09-19-performance-and-klip-tests.md).
 
 ## License
 

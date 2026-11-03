@@ -3,28 +3,28 @@
 // branch predictor state. Timing a phase in a loop of its own reports half the cost, see DESIGN.md section 6.
 // One off exploratory script, not part of CI.
 //
-// Build the JavaScript first:  cd Test && npm install && npm run testJS
-// Then run:                    node Test/Scripts/console/phases-polysXY.mjs [scale] [runs]
+// Build the JavaScript first:  cd Bench && npm run buildJS
+// Then run:                    node Bench/phases-polysXY.mjs [scale] [runs]
 
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import * as E from "../../dist/testsRelease/Src/EngineState.js";
-import * as Ingest from "../../dist/testsRelease/Src/Ingest.js";
-import * as Intersect from "../../dist/testsRelease/Src/Intersect.js";
-import * as Graph from "../../dist/testsRelease/Src/Graph.js";
-import * as Winding from "../../dist/testsRelease/Src/Winding.js";
-import * as Link from "../../dist/testsRelease/Src/Link.js";
-import { Kontur_create_1C811A3C as createKontur, Kontur_empty_Z6955A6A8 as emptyKontur } from "../../dist/testsRelease/Src/Kontur.js";
-import { KonturEngine_$ctor_5E38073B as createEngine, KonturEngine__get_State as engineState, KonturEngine__Simplify_418445A0 as engineSimplify } from "../../dist/testsRelease/Src/Engine.js";
-import { defaultTolerance } from "../../dist/testsRelease/Src/KonturModule.js";
+import * as E from "./_js/Src/EngineState.js";
+import * as Ingest from "./_js/Src/Ingest.js";
+import * as Intersect from "./_js/Src/Intersect.js";
+import * as Graph from "./_js/Src/Graph.js";
+import * as Winding from "./_js/Src/Winding.js";
+import * as Link from "./_js/Src/Link.js";
+import { Kontur_create_1C811A3C as createKontur, Kontur_empty_Z6955A6A8 as emptyKontur } from "./_js/Src/Kontur.js";
+import { KonturEngine_$ctor_5E38073B as createEngine, KonturEngine__get_State as engineState, KonturEngine__Simplify_418445A0 as engineSimplify } from "./_js/Src/Engine.js";
+import { defaultTolerance } from "./_js/Src/KonturModule.js";
 import {
     Polyline2D_createDirectly_EF0D882 as createPolyline,
     Polyline2D__CloseInPlace_5E38073B as closeInPlace,
     Polyline2D__ReverseInPlace as reverseInPlace,
     Polyline2D__get_SignedArea as polylineSignedArea,
-} from "../../dist/testsRelease/fable_modules/Euclid.0.51.0/Src/Polyline2D.fs.js";
+} from "./_js/fable_modules/Euclid.0.52.0/Src/Polyline2D.fs.js";
 
 const NonZero = 1; // Euclid.FillRule.NonZero
 const Union = 0; // Euclid.ClipType.Union
@@ -32,7 +32,7 @@ const scale = Number(process.argv[2] ?? "1");
 const runs = Number(process.argv[3] ?? "2000");
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
-const xyGroups = JSON.parse(await readFile(resolve(scriptDir, "../data/polysXY.json"), "utf8"));
+const xyGroups = JSON.parse(await readFile(resolve(scriptDir, "data/polysXY.json"), "utf8"));
 const paths = xyGroups.map(group => group[0]).map(path => {
     const xys = new Array(path.length * 2);
     for (let i = 0; i < path.length; i++) {

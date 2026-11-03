@@ -19,6 +19,7 @@ Read `DESIGN.md` first: it holds the reviewed design, the pipeline and the reaso
 - Tests use Scriptorium (Quill for the DSL, Nib for the assertions) and run unchanged on .NET and on Node:
   - `dotnet run --project ./Test/Test.fsproj`
   - `cd Test && npm install && npm test`
+- Benchmarks, the phase profiler and the performance notes live in `Bench/`, see `Bench/README.md`. Not part of CI.
 
 ## Cloud sessions
 

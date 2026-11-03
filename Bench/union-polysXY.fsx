@@ -3,12 +3,12 @@
 // One off exploratory script, not part of CI. Adapted from Klip/Test/Scripts/console/union-polysXY.fsx.
 //
 // Build the library first:  dotnet build -c Release Src/Euclid.Kontur.fsproj
-// Then run:                 dotnet fsi Test/Scripts/console/union-polysXY.fsx
+// Then run:                 dotnet fsi Bench/union-polysXY.fsx
 
-#r "nuget: Euclid, 0.51.0"
+#r "nuget: Euclid, 0.52.0"
 #r "nuget: Klip, 3.1.1"
 #r "nuget: Clipper2, 2.0.0"
-#r "../../../Src/bin/Release/net6.0/Euclid.Kontur.dll"
+#r "../Src/bin/Release/net6.0/Euclid.Kontur.dll"
 
 open System
 open System.IO
@@ -54,7 +54,7 @@ let ms (ticks: int64) : string =
 
 do
     let xy: XY[][][] =
-        __SOURCE_DIRECTORY__ + "/../data/polysXY.json"
+        __SOURCE_DIRECTORY__ + "/data/polysXY.json"
         |> File.ReadAllText
         |> JsonSerializer.Deserialize<_>
 

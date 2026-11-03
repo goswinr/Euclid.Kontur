@@ -1,4 +1,4 @@
-/// Entry points for the Node script union-polysXY.mjs into the Fable compiled Klip package.
+/// Entry points for the Node scripts union-polysXY.mjs and bench-fixtures.mjs into the Fable compiled Klip package.
 /// Klip's own path constructors are inline, so they do not exist in the JavaScript output. These wrappers do.
 module KlipJs
 

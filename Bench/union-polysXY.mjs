@@ -3,24 +3,24 @@
 // at the matching precision, in result and in time per call. The Node counterpart of union-polysXY.fsx.
 // One off exploratory script, not part of CI.
 //
-// Build the JavaScript first:  cd Test && npm install && npm run testJS && npm run buildKlipJs
-// Then run:                    node Test/Scripts/console/union-polysXY.mjs
+// Build the JavaScript first:  cd Bench && npm install && npm run build
+// Then run:                    node Bench/union-polysXY.mjs
 
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { simplify, defaultTolerance } from "../../dist/testsRelease/Src/KonturModule.js";
-import { Kontur_create_1C811A3C as createKontur, Kontur__get_PathCount as pathCount, Kontur__get_SignedArea as signedArea } from "../../dist/testsRelease/Src/Kontur.js";
-import { KonturEngine_$ctor_5E38073B as createEngine, KonturEngine__Simplify_418445A0 as engineSimplify } from "../../dist/testsRelease/Src/Engine.js";
+import { simplify, defaultTolerance } from "./_js/Src/KonturModule.js";
+import { Kontur_create_1C811A3C as createKontur, Kontur__get_PathCount as pathCount, Kontur__get_SignedArea as signedArea } from "./_js/Src/Kontur.js";
+import { KonturEngine_$ctor_5E38073B as createEngine, KonturEngine__Simplify_418445A0 as engineSimplify } from "./_js/Src/Engine.js";
 import {
     Polyline2D_createDirectly_EF0D882 as createPolyline,
     Polyline2D__CloseInPlace_5E38073B as closeInPlace,
     Polyline2D__ReverseInPlace as reverseInPlace,
     Polyline2D__get_SignedArea as polylineSignedArea,
-} from "../../dist/testsRelease/fable_modules/Euclid.0.51.0/Src/Polyline2D.fs.js";
+} from "./_js/fable_modules/Euclid.0.52.0/Src/Polyline2D.fs.js";
 
-import { toPaths as toKlipPaths, unionSelfChecked as klipUnionSelfChecked } from "../klipjs/_js/KlipJs.js";
+import { toPaths as toKlipPaths, unionSelfChecked as klipUnionSelfChecked } from "./klipjs/_js/KlipJs.js";
 
 import { booleanOpD, ClipType, FillRule } from "clipper2-ts";
 
@@ -67,7 +67,7 @@ function toKontur(xy) {
 }
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
-const xyGroups = JSON.parse(await readFile(resolve(scriptDir, "../data/polysXY.json"), "utf8"));
+const xyGroups = JSON.parse(await readFile(resolve(scriptDir, "data/polysXY.json"), "utf8"));
 const xy = xyGroups.map(group => group[0]); // only the outer path of each polygon
 
 console.log(`Original Paths: ${xy.length}, ${repetitions} timed runs per call after one warmup, the input is built outside the timing`);

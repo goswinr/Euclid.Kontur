@@ -1,11 +1,11 @@
 // The benchmark fixtures of the Klip repository under Node: Euclid.Kontur against Klip and clipper2-ts on the same
-// input. The fixtures and the timing harness are imported from the Fable compiled Test/Bench.fs, the very file
+// input. The fixtures and the timing harness are imported from the Fable compiled Bench/Bench.fs, the very file
 // the .NET counterpart bench-fixtures.fsx loads, so both runtimes run the identical workload. The printed
 // fixture checksums must match between the two runs.
 // One off exploratory script, not part of CI.
 //
-// Build the JavaScript first:  cd Test && npm install && npm run testJS && npm run buildKlipJs
-// Then run:                    node Test/Scripts/console/bench-fixtures.mjs
+// Build the JavaScript first:  cd Bench && npm install && npm run build
+// Then run:                    node Bench/bench-fixtures.mjs
 
 import {
     cases,
@@ -13,16 +13,16 @@ import {
     toKontur,
     opName,
     runKontur,
-} from "../../dist/testsRelease/Bench.js";
-import { defaultTolerance } from "../../dist/testsRelease/Src/KonturModule.js";
-import { Kontur__get_Paths } from "../../dist/testsRelease/Src/Kontur.js";
+} from "./_js/Bench.js";
+import { defaultTolerance } from "./_js/Src/KonturModule.js";
+import { Kontur__get_Paths } from "./_js/Src/Kontur.js";
 import {
     KonturEngine_$ctor_5E38073B as createEngine,
     KonturEngine__Execute_2778F657 as execute,
-} from "../../dist/testsRelease/Src/Engine.js";
-import { Polyline2D__get_SignedArea as polylineSignedArea } from "../../dist/testsRelease/fable_modules/Euclid.0.51.0/Src/Polyline2D.fs.js";
+} from "./_js/Src/Engine.js";
+import { Polyline2D__get_SignedArea as polylineSignedArea } from "./_js/fable_modules/Euclid.0.52.0/Src/Polyline2D.fs.js";
 
-import { toPaths as toKlipPaths, booleanOp as klipBooleanOp, netArea as klipNetArea } from "../klipjs/_js/KlipJs.js";
+import { toPaths as toKlipPaths, booleanOp as klipBooleanOp, netArea as klipNetArea } from "./klipjs/_js/KlipJs.js";
 
 import { booleanOp as clipperBooleanOp, areaPaths as clipperAreaPaths } from "clipper2-ts";
 

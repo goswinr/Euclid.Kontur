@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The benchmark fixtures and the timing harness of Bench.fs, see README.md. Not a test and not a package.
+       Part of the solution, so that a plain dotnet build keeps Bench.fs compiling against the library.
+       bench-fixtures.fsx loads Bench.fs as source; bench-fixtures.mjs imports the JavaScript that Fable compiles
+       from this project, built with: cd Bench && npm run buildJS -->
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>preview</LangVersion>
+    <WarningLevel>5</WarningLevel>
+    <OtherFlags>$(OtherFlags) --warnon:1182</OtherFlags>    <!-- 1182: warn on unused variables -->
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Src/Euclid.Kontur.fsproj" />
+
+    <Compile Include="Bench.fs" />
+  </ItemGroup>
+</Project>

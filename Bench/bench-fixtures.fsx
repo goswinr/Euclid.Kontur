@@ -1,17 +1,17 @@
 // The benchmark fixtures of the Klip repository on .NET: Euclid.Kontur against Klip and Clipper2 on the same input.
-// The fixtures and the timing harness come from Test/Bench.fs, the very file that Fable compiles for the Node
+// The fixtures and the timing harness come from Bench/Bench.fs, the very file that Fable compiles for the Node
 // counterpart bench-fixtures.mjs, so both runtimes run the identical workload. The printed fixture checksums
 // must match between the two runs.
 // One off exploratory script, not part of CI.
 //
 // Build the library first:  dotnet build -c Release Src/Euclid.Kontur.fsproj
-// Then run:                 dotnet fsi Test/Scripts/console/bench-fixtures.fsx
+// Then run:                 dotnet fsi Bench/bench-fixtures.fsx
 
-#r "nuget: Euclid, 0.51.0"
+#r "nuget: Euclid, 0.52.0"
 #r "nuget: Klip, 3.1.1"
 #r "nuget: Clipper2, 2.0.0"
-#r "../../../Src/bin/Release/net6.0/Euclid.Kontur.dll"
-#load "../../Bench.fs"
+#r "../Src/bin/Release/net6.0/Euclid.Kontur.dll"
+#load "Bench.fs"
 
 open System
 open Euclid

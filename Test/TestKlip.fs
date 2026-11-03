@@ -363,7 +363,7 @@ let tests =
         )
 
         test ("self union of a near horizontal rectangle with an exact midpoint extremum terminates", fun _ ->
-            // path 70 of Test/Scripts/data/polysXY.json, minimized: the bottom edge carries 1e-6 noise in Y
+            // path 70 of Bench/data/polysXY.json, minimized: the bottom edge carries 1e-6 noise in Y
             let subj = path [| 17.823630756706656; -3.1776745347575104;  14.000866896598076; -3.177673366258442;  14.000867801900924; -1.4574267995238073;  20.834059175905757; -1.4574258437039758;  20.834058932959618; -3.1776739283677022 |]
             let r = unionSelfChecked [ subj ]
             assertThat r.PathCount (tag "the polygon comes back as a single contour" >> isEqualTo 1)

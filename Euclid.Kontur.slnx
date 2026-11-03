@@ -1,4 +1,5 @@
 <Solution>
   <Project Path="Src/Euclid.Kontur.fsproj" />
   <Project Path="Test/Test.fsproj" />
+  <Project Path="Bench/Bench.fsproj" />
 </Solution>

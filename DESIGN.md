@@ -430,7 +430,7 @@ Three earlier variants were tried and rejected, and the reasons matter for anyon
   passing within tolerance of the seed, or ending at a vertex merged into the seed, is a graph
   edge through the seed, but the input segment crosses the ray next to the seed and was counted.
   That shifted every winding number of the component and turned a union inside out. Found on the
-  `Test/Scripts/data/polysXY.json` dataset at small scales, where the noise of the data falls
+  `Bench/data/polysXY.json` dataset at small scales, where the noise of the data falls
   below the tolerance. The graph edges are the only geometry the rings agree with.
 
 - A ray from the midpoint of every edge (per edge ray casting): a vertex snapped onto a segment
@@ -557,7 +557,7 @@ When the tree has stabilised it can be offered back to Euclid.BVH as a float arr
 - Hot inner functions are `inline`; visitor parameters use `[<InlineIfLambda>]` where the callee is inline.
 - Recursion in the BVH traversals is bounded by tree depth (log n). Everything else is loops.
 - Complexity: ingest O(N), intersect O(N log N + P) with P the pairs overlapping in x, cluster O(V log V), graph sort O(E log E), winding O(E) plus one ray cast per component, link O(E). Memory O(N + K) with K intersections.
-- Expected cost split on real input: the intersect sweep and the segment classification dominate. This is the thing to benchmark first. Measured on the polysXY dataset under Node after the changes of 2026-09-19: intersect a third, cluster a sixth, the graph sorts a quarter, winding a tenth, the rest small. `Test/Scripts/console/phases-polysXY.mjs` prints that split.
+- Expected cost split on real input: the intersect sweep and the segment classification dominate. This is the thing to benchmark first. Measured on the polysXY dataset under Node after the changes of 2026-09-19: intersect a third, cluster a sixth, the graph sorts a quarter, winding a tenth, the rest small. `Bench/phases-polysXY.mjs` prints that split.
 - Time a phase inside the whole pipeline, never in a tight loop of its own. The same traversal took 0.026 ms repeated by itself and 0.067 ms inside the pipeline: repeating identical input lets the branch predictor learn every data dependent branch and keeps the caches warm, which the real pipeline does not. Isolated numbers rank the phases wrong.
 
 ## 7. Where robustness comes from
@@ -611,7 +611,8 @@ Src/Link.fs                 phases 7 and 8
 Src/Engine.fs               KonturEngine, owns every buffer, runs the phases
 Src/KonturModule.fs          public companion module of convenience functions
 Src/Polyline2DExtensions.fs the same convenience functions as extension members of Polyline2D
-Test/                       Scriptorium.Quill + Scriptorium.Nib, fixtures, oracle tests, benchmarks
+Test/                       Scriptorium.Quill + Scriptorium.Nib, fixtures, oracle tests
+Bench/                      benchmark fixtures, .NET and Node benchmark scripts, phase profiler, notes
 Docs/                       fsdocs, plus the SVG visualisation (pending)
 ```
 

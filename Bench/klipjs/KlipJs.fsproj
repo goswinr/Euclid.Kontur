@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- Compiles the Klip nuget package with Fable to JavaScript for Test/Scripts/console/union-polysXY.mjs.
-       Build from the Test folder, where the Fable tool manifest lives:
-         cd Test && npm run buildKlipJs -->
+  <!-- Compiles the Klip nuget package with Fable to JavaScript for Bench/union-polysXY.mjs and Bench/bench-fixtures.mjs.
+       Build from the Bench folder:
+         cd Bench && npm run buildKlipJs -->
   <PropertyGroup>
     <OutputType>Library</OutputType>
     <TargetFramework>net10.0</TargetFramework>
