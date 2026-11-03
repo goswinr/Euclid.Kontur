@@ -19,6 +19,7 @@
     <Compile Include="TestEngine.fs" />
     <Compile Include="TestKlip.fs" />
     <Compile Include="TestPolyline2D.fs" />
+    <Compile Include="TestKonturData.fs" />
     <Compile Include="TestMain.fs" />
   </ItemGroup>
 </Project>

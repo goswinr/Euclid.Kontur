@@ -10,15 +10,18 @@ module internal Ingest =
     /// The closing duplicate of the first point is dropped, so each vertex of a path is stored once and the last
     /// segment runs from the last vertex back to the first. Consecutive vertices closer than the tolerance
     /// are merged into the first of them. Paths with fewer than three distinct vertices are dropped.
-    /// A coordinate that is NaN or infinite fails, it would poison every comparison of the pipeline.</summary>
+    /// A coordinate that is NaN or infinite fails, it would poison every comparison of the pipeline.
+    /// While s.Track is set, the point index of every vertex and the path index of every path are recorded too.</summary>
     let addKontur (s: EngineState) (kontur: Kontur) (group: int) : unit =
         let sqTol = s.Tolerance * s.Tolerance
+        let track = s.Track
         let mutable points = 0
         for p = 0 to kontur.PathCount - 1 do
             let pl = kontur.Paths.[p]
             Kontur.checkPath "KonturEngine.Execute" p pl // the Polyline2D is mutable, so it may have been opened since the Kontur was created
             points <- points + pl.PointCount - 1
         s.EnsureVertices (s.VertexCount + points) // one growth step for all input vertices, instead of one per doubling
+        if track then s.VertPoint <- Buffers.ensureInt s.VertPoint s.VertexCount (s.VertexCount + points)
         for p = 0 to kontur.PathCount - 1 do
             let pl = kontur.Paths.[p]
             let xys = pl.XYs
@@ -32,14 +35,16 @@ module internal Ingest =
                 if Double.IsNaN x || Double.IsInfinity x || Double.IsNaN y || Double.IsInfinity y then
                     fail $"KonturEngine.Execute: point {i} of path {p} is not finite: ({x}, {y}). Every coordinate must be a finite number."
                 if i = 0 then
-                    s.AddVertex (x, y) |> ignore
+                    let v = s.AddVertex (x, y)
+                    if track then Arr.set s.VertPoint v i
                     lastX <- x
                     lastY <- y
                 else
                     let dx = x - lastX
                     let dy = y - lastY
                     if dx * dx + dy * dy > sqTol then
-                        s.AddVertex (x, y) |> ignore
+                        let v = s.AddVertex (x, y)
+                        if track then Arr.set s.VertPoint v i
                         lastX <- x
                         lastY <- y
             // the last kept vertex may be within tolerance of the first one:
@@ -60,6 +65,9 @@ module internal Ingest =
                 s.PathGroup <- Buffers.ensureInt s.PathGroup pi (pi + 1)
                 Arr.set s.PathStart pi startV
                 Arr.set s.PathGroup pi group
+                if track then
+                    s.PathSource <- Buffers.ensureInt s.PathSource pi (pi + 1)
+                    Arr.set s.PathSource pi p
                 s.PathCount <- pi + 1
                 let si = s.SegCount
                 s.SegA     <- Buffers.ensureInt s.SegA     si (si + count)

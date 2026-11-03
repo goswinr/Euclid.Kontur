@@ -31,9 +31,14 @@ module internal Link =
 
     /// Pass 2 of tryLink: writes out every cycle of the successor mapping in Next once, into a Polyline2D of exactly
     /// the right capacity. The mapping is one to one on the result half edges, so every walk closes.
+    /// While s.Track is set, the vertex id of every written vertex is recorded in s.OutVert too.
     let private writeCycles (s: EngineState) (results: ResizeArray<Polyline2D>) : unit =
         let h = 2 * s.GCount
         let next = s.Next
+        let track = s.Track
+        // every result edge has one outgoing half edge, so there are at most as many result vertices as edges:
+        if track then s.OutVert <- Buffers.ensureInt s.OutVert 0 s.GCount
+        let mutable outCount = 0
         for h0 = 0 to h - 1 do
             if Arr.get next h0 >= 0 then
                 let mutable count = 1
@@ -47,11 +52,15 @@ module internal Link =
                 for _ = 1 to count do
                     let v = origin s hh
                     pl.AddXY (s.X v, s.Y v)
+                    if track then
+                        Arr.set s.OutVert outCount v
+                        outCount <- outCount + 1
                     let nh = Arr.get next hh
                     Arr.set next hh (-2) // consumed
                     hh <- nh
                 pl.AddXY (s.X (origin s h0), s.Y (origin s h0))
                 results.Add pl
+        s.OutCount <- outCount
 
     /// <summary>Phase 8: links the selected edges into closed contours and appends them as Polyline2Ds.
     /// At every vertex the contour continues along the first outgoing result edge found clockwise from the
@@ -62,7 +71,8 @@ module internal Link =
     /// an incoming result edge and no outgoing one, or a result edge that would follow two others. Both happen only
     /// when the winding numbers are inconsistent, because the graph is not planar, see Graph.repair. The reason is
     /// left in LinkError. The successor mapping is checked to be one to one before the first contour is written,
-    /// so the second pass cannot fail.</summary>
+    /// so the second pass cannot fail. While s.Track is set, the vertex id of every written vertex is recorded in
+    /// s.OutVert too.</summary>
     let tryLink (s: EngineState) (results: ResizeArray<Polyline2D>) : bool =
         let h = 2 * s.GCount
         s.Next <- Buffers.ensureInt s.Next 0 h

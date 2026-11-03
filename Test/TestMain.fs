@@ -25,4 +25,5 @@ let main _ =
         TestEngine.tests
         TestKlip.tests
         TestPolyline2D.tests
+        TestKonturData.tests
         ])

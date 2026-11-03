@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Vertex data: `KonturData<'T>` pairs a `Kontur` with one value of any type per point, and `KonturEngine.ExecuteWithData`, `SimplifyWithData` and `UnionAllWithData` hand each value on to the result vertex its point becomes. A new vertex where two segments cross gets the value of a caller's function of the two `CrossedSegment<'T>`, called once per crossing in the result. Operations without data are not slowed down.
+
 ### Fixed
 
 - Boolean operations failed with `Kontur.Link: no outgoing result edge` or `half edge is used twice` when two segments met end to end almost collinear, as they do between results that share crossing vertices, for example a `NonZero` and a `Positive` simplification of the same polygon. The intersect phase found a crossing in the rounding noise of their determinant. Segments that share an end now never get a crossing, and a crossing must be the same point on both segments within tolerance.

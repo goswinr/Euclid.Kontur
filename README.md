@@ -181,6 +181,34 @@ let combined = engine.UnionAll [ a; b; frame ]
 An engine is not thread safe; use a separate instance for each concurrent operation. Results
 own their output polylines and remain valid when the engine is reused.
 
+## Track where result vertices come from
+
+A `KonturData<'T>` pairs a `Kontur` with one value per point of every path. The value can be anything:
+a tag, a height, a reference to your own object. `ExecuteWithData` hands each value on to the result
+vertex its point becomes, and asks a function for the value of every new vertex where two segments cross:
+
+```fsharp
+// Tag every point with where it comes from: shape, path index, point index.
+let tagged name k = KonturData.init (k, fun path point -> Some (name, path, point))
+
+// A new vertex where two segments cross gets the value of this function.
+let atCrossing (_: CrossedSegment<_>) (_: CrossedSegment<_>) = None
+
+let result = engine.ExecuteWithData (tagged "a" a, tagged "b" b, ClipType.Union, atCrossing)
+// result.Kontur.Paths.[p] has the contours, result.Data.[p].[i] the value of their point i:
+// Some ("a", 0, 1) for point 1 of path 0 of a, None for a crossing.
+
+// Values are interpolated with the parameters of the two crossing segments:
+let lerp (s: CrossedSegment<float>) (_: CrossedSegment<float>) = s.Start + (s.End - s.Start) * s.Parameter
+```
+
+Each crossing function call gets the subject segment first when a subject segment crosses a clip segment.
+It runs once per crossing that is part of the result. Points within tolerance of each other become one
+vertex that keeps the value of the first: subject before clip, then the earlier path and point.
+The result has the same shape as the input, so it can feed the next operation.
+`SimplifyWithData` and `UnionAllWithData` work the same way. Operations without data are not slowed down:
+the engine records only integers, and only while an operation with data runs.
+
 Internally, Euclid.Kontur finds candidate segment pairs with sweep and prune, clusters nearby vertices,
 then propagates winding numbers through a planar graph and links the selected boundaries.
 Flat numeric arrays keep the same implementation efficient on .NET and under Fable.

@@ -171,6 +171,43 @@ oriented on purpose, a clockwise path is a hole under `NonZero`.
 The result is the `Paths` of the result `Kontur`. A list of polylines and not one polyline, because
 an operation can return several contours and holes.
 
+### 3.3 Vertex data
+
+To track where the vertices of a result come from, the caller attaches one value of any type per
+input point and gets one value per result point back:
+
+```fsharp
+/// A Kontur plus one value per point of each path, aligned with the Polyline2D point indices,
+/// closing point included. The engine reads only the first of the two values of the closing point.
+type KonturData<'T> =
+    member Kontur : Kontur
+    member Data   : ResizeArray<'T[]>    // Data.[p].Length = Kontur.Paths.[p].PointCount
+    static member create          : Kontur * seq<'T[]> -> KonturData<'T>
+    static member createSingleton : Polyline2D * 'T[] * ?fillRule: FillRule -> KonturData<'T>
+    static member init            : Kontur * (pathIndex: int -> pointIndex: int -> 'T) -> KonturData<'T>
+
+/// One of the two segments crossing at a new vertex, as given to the crossing function.
+type CrossedSegment<'T> =
+    member Start : 'T            member End : 'T            member Parameter : float
+    member IsSubject : bool      member PathIndex : int
+    member StartIndex : int      member EndIndex : int     // point indices in the Polyline2D
+
+type KonturEngine with
+    member ExecuteWithData  : KonturData<'T> * KonturData<'T> * ClipType * onCrossing: (CrossedSegment<'T> -> CrossedSegment<'T> -> 'T) -> KonturData<'T>
+    member SimplifyWithData : KonturData<'T> * onCrossing -> KonturData<'T>
+    member UnionAllWithData : seq<KonturData<'T>> * onCrossing -> KonturData<'T>
+```
+
+The result has the shape of the input, so it feeds the next operation, and `UnionAllWithData`
+chains its simplifications like `UnionAll`. Where a result vertex gets its value:
+
+- An input vertex keeps the value of its input point. That includes an input vertex lying on a segment of the other Kontur (a T junction): it is no new vertex, so the crossing function is not called.
+- Points within tolerance of each other become one vertex, the cluster representative of section 4.4, and that keeps its value. The representative is the lowest vertex id, so subject wins over clip, then the earlier path and the earlier point, and an input point wins over a crossing snapped onto it. The values of the other points of the cluster are lost. A merge function for them is possible later, the union find is complete after phase 4.
+- A consecutive point within tolerance of the previous one is dropped by ingest, with its value.
+- A crossing vertex gets the value of the crossing function. It is called once per crossing that is part of the result, after linking, so a crossing shared by two contours (two lobes of a figure eight) has the same value in both. The first segment is the one with the lower segment id, which is the subject segment when a subject segment crosses a clip segment.
+
+`Kontur`, `KonturEngine` and `Execute` stay non generic, see section 4.9 for why.
+
 ## 4. Pipeline
 
 Every phase reads and writes flat arrays owned by the engine. Indices, not objects, refer to
@@ -567,6 +604,44 @@ positive `SignedArea`, holes clockwise. The result `Kontur` gets `FillRule.Posit
 With `RemoveCollinear` set, a vertex whose two output edges are collinear within tolerance is
 skipped while writing.
 
+### 4.9 Trace: vertex data
+
+**Decision (implemented):** the pipeline carries no values of the caller's type `'T`. Vertex ids
+already flow through every phase: clustering picks a representative id, the graph edges and the
+link phase work on ids. So the engine records only which input point each input vertex was copied
+from and which vertex each result vertex is, and the values are looked up after linking, in
+`Src/Trace.fs`:
+
+```fsharp
+// EngineState, filled only while Track is set, empty arrays on an engine that never tracks
+Track      : bool
+VertPoint  : int[]   // per input vertex: its point index in its Polyline2D (ingest drops near duplicates)
+PathSource : int[]   // per path: its index in Kontur.Paths (ingest drops degenerate paths)
+OutVert    : int[]   // per result vertex in link order: the vertex id
+CrossEvent : int[]   // scratch of the lookup: per crossing vertex its first split event, -1 once computed
+```
+
+The two segments of a crossing vertex need no recording. `intersectPair` appends every crossing
+vertex directly before its two split events, the one on the lower segment id first, and the split
+phase sorts only `EvOrder`, never the event arrays. So one scan of the events in order finds the
+pair of every crossing vertex, `SegA` and `SegB` give the end vertices of the two segments, and
+`VertPoint` and `PathSource` give their values. The scan checks that pairing and fails loudly if a
+later change to the intersect phase breaks it. The path of a vertex is a binary search in `PathStart`.
+
+Why not carry `'T` through the pipeline:
+
+- The ids already identify every vertex in every phase, a copy of `'T` alongside them would duplicate that, and ingest would still need the point index to know which value to copy.
+- The lookup is lazy: only result vertices are read, and the crossing function runs only for crossings that are part of the result, after clustering has decided which crossings are new vertices at all. Inside `intersectPair`, the hottest function, it would be a closure call for every crossing found.
+- A `'T[]` in `EngineState` makes either the engine generic (`KonturEngine<'T>`, one engine per data type, a type parameter for callers without data) or an `obj[]` that boxes every value type `'T`.
+- Reused buffers keep stale items past their count (section 6). Stale ints are harmless, stale references would keep the caller's objects of the previous operation alive.
+- Under Fable a generic `'T[]` is a plain JavaScript array, not a typed array. In the lookup, once per result vertex, that does not matter.
+
+Cost without data: one predictable branch per input vertex in ingest and one per result vertex in
+link, nothing in the other phases. Measured on 2026-11-04 on the polysXY dataset: `Simplify` within
+the noise of the version before, on .NET and under Node, and the ingest and link phases unchanged
+in `Bench/phases-polysXY.mjs`. `SimplifyWithData` with an int per point costs about 5 to 10 percent
+more than `Simplify` on .NET.
+
 ## 5. The private BVH
 
 **Decision:** Euclid.Kontur depends on Euclid only. It carries its own internal BVH, modelled on
@@ -675,6 +750,7 @@ and edges moved by merges chained over many tolerances can still cross far from 
 Src/Euclid.Kontur.fsproj   net6.0;net472, Fable content, references Euclid only
 Src/FillRule.fs             FillRule, ClipType, isInside, combine
 Src/Kontur.fs                Kontur
+Src/KonturData.fs           KonturData and CrossedSegment, section 3.3
 Src/Buffers.fs              ensureCapacity helpers, in place sorts on parallel arrays
 Src/Bvh.fs                  the private float array BVH, section 5
 Src/Ingest.fs               phase 1
@@ -682,6 +758,7 @@ Src/Intersect.fs            phases 2 and 3
 Src/Graph.fs                phases 4, 5 and 8b, pseudo angle
 Src/Winding.fs              phase 6, ray cast
 Src/Link.fs                 phases 7 and 8
+Src/Trace.fs                vertex data lookup after linking, section 4.9
 Src/Engine.fs               KonturEngine, owns every buffer, runs the phases
 Src/KonturModule.fs          public companion module of convenience functions
 Src/Polyline2DExtensions.fs the same convenience functions as extension members of Polyline2D
@@ -709,6 +786,7 @@ Reviewed on 2026-09-19. These replace the earlier open questions.
 | 7 | winding | per edge ray casting was built first as the test oracle, O(E) propagation is implemented and shipped (section 4.6) |
 | 8 | orientation in `Polyline2D.Simplify` | the fill rule follows the sign of the signed area, `Positive` or `Negative`, decided on 2026-11-03, section 3.2 |
 | 9 | residual crossings after merging | repaired by rerouting edges through the vertices they come within tolerance of, around moved vertices only, with merging as the fallback when the reroutes do not settle; run only when the result edges do not link at the first try; decided on 2026-11-04, section 4.5.1 |
+| 10 | vertex data | `KonturData<'T>` aligned with the point indices, a crossing function called after linking; the engine records only ints, the cluster representative's value wins, 2026-11-04, sections 3.3 and 4.9 |
 
 Still at their defaults, not yet discussed: absolute tolerance `1e-6` per engine, open input
 polylines fail, collinear output vertices preserved, no nesting tree in version 1,

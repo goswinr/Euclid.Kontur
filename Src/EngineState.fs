@@ -180,6 +180,29 @@ type internal EngineState (tolerance: float) =
     /// Why the last Link.tryLink failed.
     member val LinkError : string = "" with get, set
 
+    // ---------------------- vertex sources, for KonturEngine.ExecuteWithData ----------------------
+    // Only integers are recorded, and only while Track is set. The two segments of a crossing vertex need no
+    // recording, they are in its two split events. The values of type 'T are looked up after the link phase,
+    // in Trace.mapData, once per result vertex. So the operations without data pay one branch per input vertex
+    // and one per result vertex, and these arrays stay empty on an engine that never tracks.
+
+    /// TRUE while an operation with vertex data runs: then ingest and link record where every vertex comes from.
+    member val Track : bool = false with get, set
+    /// Per input vertex: the index of the point of its Polyline2D it was copied from. Not the vertex id minus the path start,
+    /// because ingest drops points closer than the tolerance to the previous one. Only filled while Track is set.
+    member val VertPoint : int[] = [||] with get, set
+    /// Per path: its index in the Paths of its Kontur. Not the path id, because ingest drops paths with fewer than three
+    /// distinct vertices. Only filled while Track is set.
+    member val PathSource : int[] = [||] with get, set
+    /// Per result vertex, in the order the link phase writes them, without the closing duplicates: the vertex id.
+    /// Only filled while Track is set.
+    member val OutVert : int[] = [||] with get, set
+    /// The count of result vertices in OutVert.
+    member val OutCount : int = 0 with get, set
+    /// Scratch of Trace.mapData, per crossing vertex v: the first of its two split events at index v - InputVertexCount,
+    /// or -1 once the value of the crossing has been computed.
+    member val CrossEvent : int[] = [||] with get, set
+
     /// Forgets all content but keeps the arrays.
     member s.Clear () : unit =
         s.VertexCount <- 0
@@ -190,6 +213,7 @@ type internal EngineState (tolerance: float) =
         s.ECount <- 0
         s.GCount <- 0
         s.RepairRounds <- 0
+        s.OutCount <- 0
 
     // ---------------------- vertex helpers ----------------------
 

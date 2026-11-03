@@ -64,6 +64,7 @@
 
     <Compile Include="FillRule.fs" />
     <Compile Include="Kontur.fs" />
+    <Compile Include="KonturData.fs" />
     <Compile Include="Arr.fs" />
     <Compile Include="Buffers.fs" />
     <Compile Include="Bvh.fs" />
@@ -73,6 +74,7 @@
     <Compile Include="Graph.fs" />
     <Compile Include="Winding.fs" />
     <Compile Include="Link.fs" />
+    <Compile Include="Trace.fs" />
     <Compile Include="Engine.fs" />
     <Compile Include="KonturModule.fs" />
     <Compile Include="Polyline2DExtensions.fs" />
