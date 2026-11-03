@@ -2,7 +2,8 @@
   "type": "module",
   "scripts": {
     "checkTS": "tsc",
-    "buildTS": "dotnet fable ../Src/Euclid.Kontur.fsproj --lang typescript --outDir ./_ts --configuration Release --run npm run checkTS",
+    "cleanTS": "node -e \"import('node:fs').then(fs => fs.rmSync('_ts', { recursive: true, force: true }))\"",
+    "buildTS": "npm run cleanTS && dotnet fable ../Src/Euclid.Kontur.fsproj --lang typescript --outDir ./_ts --configuration Release --run npm run checkTS",
     "testJS": "dotnet fable --outDir dist/testsRelease --noCache --configuration Release --runScript",
     "testDb": "dotnet fable --outDir dist/testsDebug --noCache --configuration Debug --runScript",
     "buildKlipJs": "dotnet fable Scripts/klipjs/KlipJs.fsproj --outDir Scripts/klipjs/_js --noCache --noReflection",

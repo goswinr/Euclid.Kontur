@@ -63,8 +63,8 @@ let tests =
                         let outer = square 0.0 4.0
                         let inner = square 1.0 2.0
                         let paths = [
-                            if outerCcw then outer else outer.Reverse ()
-                            if innerCcw then inner else inner.Reverse ()
+                            if outerCcw then outer else Polyline2D.reverse outer
+                            if innerCcw then inner else Polyline2D.reverse inner
                         ]
                         let input = Kontur.create (paths, rule)
                         let result = Kontur.simplify input

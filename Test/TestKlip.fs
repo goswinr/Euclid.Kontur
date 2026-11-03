@@ -49,7 +49,7 @@ let private absArea (s: Kontur) =
 
 /// Every path with a positive orientation, like Klip.unionSelfChecked: clockwise paths are replaced by reversed copies.
 let private positives (ps: Polyline2D list) =
-    ps |> List.map (fun p -> if p.SignedArea < 0.0 then p.Reverse () else p)
+    ps |> List.map (fun p -> if p.SignedArea < 0.0 then Polyline2D.reverse p else p)
 
 /// The union of the paths under NonZero after forcing all of them to a positive orientation.
 let private unionSelfChecked (ps: Polyline2D list) =
@@ -616,7 +616,7 @@ let tests =
         test ("a short segment crossing a long diagonal is a proper intersection in either direction", fun _ ->
             // a square of side 2 centered on the diagonal of a big triangle: half of it is inside
             for diagonal in [ path [| 0.0; 0.0;  1e6; 1e6;  0.0; 1e6 |]; path [| 0.0; 1e6;  1e6; 1e6;  0.0; 0.0 |] ] do
-                for sq in [ square (5e5 - 1.0) (5e5 - 1.0) 2.0; (square (5e5 - 1.0) (5e5 - 1.0) 2.0).Reverse () ] do
+                for sq in [ square (5e5 - 1.0) (5e5 - 1.0) 2.0; Polyline2D.reverse (square (5e5 - 1.0) (5e5 - 1.0) 2.0) ] do
                     let r = Kontur.intersection (nonZero [ diagonal ]) (nonZero [ sq ])
                     assertThat r.PathCount (tag "one polygon" >> isEqualTo 1)
                     assertThat (absArea r) (tag "half the square" >> isCloseTo Accuracy.medium 2.0)
@@ -758,7 +758,7 @@ let tests =
         )
 
         test ("the operations do not mutate their input", fun _ ->
-            let neg = (square 0.0 0.0 10.0).Reverse ()
+            let neg = Polyline2D.reverse (square 0.0 0.0 10.0)
             let pos = square 5.0 5.0 10.0
             let input = nonZero [ neg; pos ]
             let before = sortedXYs input

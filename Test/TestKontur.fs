@@ -79,7 +79,7 @@ let tests =
 
         test ("Positive and Negative depend on orientation", fun _ ->
             let ccw = square 0.0 0.0 10.0
-            let cw = ccw.Reverse ()
+            let cw = Polyline2D.reverse ccw
             let pt = Pt (5.0, 5.0)
             assertThat ((Kontur.createSingleton (ccw, FillRule.Positive)).Contains pt) (tag "ccw positive" >> isTrue)
             assertThat ((Kontur.createSingleton (ccw, FillRule.Negative)).Contains pt) (tag "ccw negative" >> isFalse)
@@ -89,7 +89,7 @@ let tests =
 
         test ("SignedArea sums the paths", fun _ ->
             let outer = square 0.0 0.0 10.0
-            let hole = (square 3.0 3.0 4.0).Reverse ()
+            let hole = Polyline2D.reverse (square 3.0 3.0 4.0)
             let s = Kontur.create ([outer; hole], FillRule.Positive)
             assertThat s.SignedArea (tag "100 - 16" >> isCloseTo Accuracy.high 84.0)
             assertThat (Kontur.empty FillRule.NonZero).SignedArea (tag "empty" >> isEqualTo 0.0)
