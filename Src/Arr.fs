@@ -23,3 +23,14 @@ module internal Arr =
         #else
         arr.[i] <- v
         #endif
+
+
+module internal Rarr =
+
+    /// arr.[i] without a bounds check under Fable.
+    let inline get (arr: 'T ResizeArray) (i: int) : 'T =
+        #if FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT
+        Fable.Core.JsInterop.emitJsExpr (arr, i) "$0[$1]"
+        #else
+        arr.[i]
+        #endif

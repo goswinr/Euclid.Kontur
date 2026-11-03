@@ -27,8 +27,8 @@ module internal Ingest =
             let mutable lastX = 0.0
             let mutable lastY = 0.0
             for i = 0 to n - 1 do
-                let x = xys.[2 * i]
-                let y = xys.[2 * i + 1]
+                let x = Rarr.get xys (2 * i)
+                let y = Rarr.get xys (2 * i + 1)
                 if Double.IsNaN x || Double.IsInfinity x || Double.IsNaN y || Double.IsInfinity y then
                     fail $"KonturEngine.Execute: point {i} of path {p} is not finite: ({x}, {y}). Every coordinate must be a finite number."
                 if i = 0 then
