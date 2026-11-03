@@ -251,7 +251,7 @@ let tests =
             let shapes =
                 [ Kontur.create ([ square 0.0 0.0 10.0; square 3.0 3.0 4.0 ], FillRule.EvenOdd)
                   Kontur.createSingleton (square 8.0 0.0 10.0)
-                  Kontur.createSingleton ((square 30.0 30.0 5.0).Reverse (), FillRule.NonZero)
+                  Kontur.createSingleton (Polyline2D.reverse (square 30.0 30.0 5.0), FillRule.NonZero)
                   Kontur.createSingleton (square 4.0 4.0 2.0) ]
             let all = Kontur.unionAll shapes
             checkResult all
@@ -290,6 +290,22 @@ let tests =
                 checkAll rand engine a b
         )
 
+        test ("operations between simplifications of one polygon under different fill rules", fun _ ->
+            // The results share the crossing vertices of the polygon and continue each other's edges there almost
+            // collinear. The intersect phase found crossings in the rounding noise between such segments, and most
+            // of these operations failed in the linking.
+            let rand = Random 15
+            let engine = KonturEngine 1e-6
+            for _ in 1 .. 12 do
+                let pl = randomTangle rand 0.0 0.0 10.0 (6 + rand.Next 14)
+                let nonZero = engine.Simplify (Kontur.createSingleton (pl, FillRule.NonZero))
+                let positive = engine.Simplify (Kontur.createSingleton (pl, FillRule.Positive))
+                let evenOdd = engine.Simplify (Kontur.createSingleton (pl, FillRule.EvenOdd))
+                for a, b in [ nonZero, positive; positive, nonZero; nonZero, evenOdd; evenOdd, positive ] do
+                    if not a.IsEmpty && not b.IsEmpty then
+                        checkAll rand engine a b
+        )
+
         test ("the graph invariants hold after every random operation", fun _ ->
             let rand = Random 14
             let engine = KonturEngine 1e-6
@@ -317,9 +333,9 @@ let tests =
             assertThat (Kontur.simplify (Kontur.createSingleton (twice, FillRule.EvenOdd))).IsEmpty (tag "twice under even odd" >> isTrue)
             // a square and its reverse in one NonZero shape cancel, as two shapes they do not:
             let sq = square 0.0 0.0 10.0
-            let both = Kontur.create ([ sq; sq.Reverse () ], FillRule.NonZero)
+            let both = Kontur.create ([ sq; Polyline2D.reverse sq ], FillRule.NonZero)
             assertThat (Kontur.simplify both).IsEmpty (tag "opposite copies cancel under non zero" >> isTrue)
-            assertThat (area (Kontur.union (Kontur.createSingleton sq) (Kontur.createSingleton (sq.Reverse ())))) (tag "as separate shapes both count" >> isCloseTo Accuracy.high 100.0)
+            assertThat (area (Kontur.union (Kontur.createSingleton sq) (Kontur.createSingleton (Polyline2D.reverse sq)))) (tag "as separate shapes both count" >> isCloseTo Accuracy.high 100.0)
             // tiny polygon below the tolerance:
             let tiny = Kontur.createSingleton (square 0.0 0.0 1e-8)
             assertThat (Kontur.simplify tiny).IsEmpty (tag "smaller than the tolerance vanishes" >> isTrue)
@@ -351,6 +367,42 @@ let tests =
             oracle (Random 17) a b ClipType.Union r
             assertThat r.PathCount (tag "passing edge gives one contour" >> isEqualTo 1)
             assertThat (area r) (tag "passing edge gives a positive area" >> isGreaterThan 57.25)
+        )
+
+        test ("segments meeting end to end almost collinear get no crossing vertex", fun _ ->
+            // Two segments on one line of an offset, rounded differently: the subject's runs down from v3 to v4,
+            // the clip's runs up from below to v4, at an angle of 8e-12. Their determinant is rounding noise, and
+            // the crossing formula put a vertex 0.0002 from v4 onto both segments. The clip segment then overshot
+            // v4 and crossed the subject's next edge, the graph was not planar and linking failed.
+            let v3 = (16.203503534766018, 30.93299519865085)
+            let v4 = (16.201156665959292, 30.533346389341933)
+            let below = (16.188379752616388, 28.357562984021822)
+            let a = Kontur.createSingleton (poly [ v3; v4; (17.0, 30.5) ])
+            let b = Kontur.createSingleton (poly [ below; v4; (15.0, 29.5) ])
+            let areaA = abs (area a)
+            let areaB = abs (area b)
+            let engine = KonturEngine KonturEngine.DefaultTolerance
+            for x, y, name in [ a, b, "a b"; b, a, "b a" ] do
+                let s = engine.State
+                s.Clear ()
+                Ingest.addKontur s x 0
+                Ingest.addKontur s y 1
+                Ingest.finish s
+                Intersect.sortRects s
+                Intersect.findIntersections s
+                assertThat s.VertexCount (tag $"no crossing vertex, {name}" >> isEqualTo s.InputVertexCount)
+                let rand = Random 23
+                let union = engine.Execute (x, y, ClipType.Union)
+                oracle rand x y ClipType.Union union
+                assertThat (area union) (tag $"union, {name}" >> isCloseTo Accuracy.high (areaA + areaB))
+                let inter = engine.Execute (x, y, ClipType.Intersection)
+                assertThat inter.PathCount (tag $"intersection is empty, {name}" >> isEqualTo 0)
+                let diff = engine.Execute (x, y, ClipType.Difference)
+                oracle rand x y ClipType.Difference diff
+                assertThat (area diff) (tag $"difference, {name}" >> isCloseTo Accuracy.high (abs (area x)))
+                let xor = engine.Execute (x, y, ClipType.Xor)
+                oracle rand x y ClipType.Xor xor
+                assertThat (area xor) (tag $"xor, {name}" >> isCloseTo Accuracy.high (areaA + areaB))
         )
 
         test ("propagated winding numbers agree with per edge ray casting on clean input", fun _ ->

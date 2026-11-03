@@ -132,13 +132,20 @@ module internal Intersect =
             if sd * sd <= lineTolA && not ad && not bd then endpointOnSegment s sqTol p ax ay bx by d dx dy
             if sa * sa <= lineTolB && not ac && not ad then endpointOnSegment s sqTol q cx cy dx dy a ax ay
             if sb * sb <= lineTolB && not bc && not bd then endpointOnSegment s sqTol q cx cy dx dy b bx by
-            if det <> 0.0 then // parallel segments never cross properly, their overlaps are handled above
+            // Segments that share an end meet only there once the cluster phase has merged the ends, so they
+            // never cross properly. Nearly parallel ones would get a crossing from a determinant that is
+            // only rounding noise, far from the shared end, which made the graph non planar.
+            // Parallel segments never cross properly either, their overlaps are handled above.
+            if det <> 0.0 && not (ac || ad || bc || bd) then
                 let t = sa / det
                 let u = -sc / det
                 if t >= 0.0 && t <= 1.0 && u >= 0.0 && u <= 1.0 then
                     let x = ax + vAx * t
                     let y = ay + vAy * t
-                    if sqDist ax ay x y > sqTol && sqDist bx by x y > sqTol && sqDist cx cy x y > sqTol && sqDist dx dy x y > sqTol then
+                    // The point at u on q must be the same point. For nearly parallel segments t and u are ratios of
+                    // tiny cross products and may each land in range by rounding while naming different points.
+                    if sqDist ax ay x y > sqTol && sqDist bx by x y > sqTol && sqDist cx cy x y > sqTol && sqDist dx dy x y > sqTol
+                       && sqDistAt cx cy dx dy u x y <= sqTol then
                         let v = s.AddVertex (x, y)
                         s.AddEvent (p, t, v)
                         s.AddEvent (q, u, v)

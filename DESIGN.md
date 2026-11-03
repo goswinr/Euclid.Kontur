@@ -261,9 +261,21 @@ path's edge produce a single shared vertex instead of a new point a few ulps awa
 The crossing point itself is computed with the standard determinant formula
 (`XLineXY.parameters` in Euclid). The determinant is only used to compute the point, never to
 decide topology: whether two segments cross is decided by the tolerance tests above plus the
-parameter range check, and the resulting vertex is shared. A wrong sign of a near zero
-determinant therefore produces a point that lands within tolerance of an endpoint, which the
-cluster phase merges.
+parameter range check, and the resulting vertex is shared.
+
+That alone is not enough for nearly parallel segments. Their determinant can be pure rounding
+noise, and `t` and `u` can each land in `0..1` while naming two different points far apart.
+So the slow path, where some end lies within tolerance of the other segment's line, has two
+guards. Segments that share an end, within tolerance, get no crossing at all: once the cluster
+phase has merged that end they meet only there. And the point at `u` on `q` must lie within
+tolerance of the point at `t` on `p`. Without the guards, two segments meeting end to end at an
+angle of 8e-12 got a crossing 0.0002 from their shared end. One of the sub segments overshot
+that end and crossed a third edge, the graph was no longer planar and the linking failed. That
+broke three quarters of the operations between simplifications of one polygon under different
+fill rules, which share its crossing vertices. The fast path needs no guard: all four ends are
+farther than the tolerance from the other line, so a crossing has `|det| > 2 * tolerance * |p|`,
+far above its rounding error while the segments are not many orders of magnitude longer than the
+tolerance.
 
 The classification reads the eight coordinates once and starts from three cross products:
 the determinant of the two directions, and the signed areas of `c` against the line of `p` and

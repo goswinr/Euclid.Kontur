@@ -43,8 +43,9 @@ let private maxVertexDistance (a: Polyline2D) (b: Polyline2D) =
     worst
 
 /// An inward offset of a half disc, captured in Rhino with Polyline2D.AsFSharpCode.
-/// It runs counter clockwise, but the offset left three loops that run clockwise:
-/// a thin tail at each bottom corner and a triangle at the right. At the top a zigzag crosses itself.
+/// It runs counter clockwise, but the offset left three loops of winding -1 that run clockwise:
+/// a thin tail at each bottom corner and a diamond inside the zigzag at the top.
+/// A triangle at the right is wound twice, winding 2, it lies inside the main region and stays filled.
 let private offsetWithLoops =
     Polyline2D.createFromPts [|
         Pt(25.19068907000115, 23.74933633351885); Pt(25.202661670895353, 23.063426487669293); Pt(25.18622095833124, 23.377133971348783)
@@ -81,7 +82,8 @@ let private offsetWithLoops =
     |]
 
 /// The expected cleanup of offsetWithLoops, also captured in Rhino with Polyline2D.AsFSharpCode:
-/// one counter clockwise contour without the three clockwise loops, the zigzag at the top resolved into two notches.
+/// one counter clockwise contour without the three clockwise loops, the zigzag at the top resolved into two notches
+/// on either side of the removed diamond.
 let private offsetCleaned =
     Polyline2D.createFromPts [|
         Pt(25.12055823604955, 24.001873042193203); Pt(25.0714162262445, 24.312143481033992); Pt(25.01147587026685, 24.62050988009752)
@@ -168,7 +170,7 @@ let tests =
 
         test ("the orientation of the inputs does not matter", fun _ ->
             let a = square 0.0 0.0 10.0
-            let b = (square 5.0 5.0 10.0).Reverse () // clockwise
+            let b = Polyline2D.reverse (square 5.0 5.0 10.0) // clockwise
             let uni = a.Union b
             assertThat (area uni) (tag "union with a clockwise square" >> isCloseTo Accuracy.high 175.0)
             assertThat uni.[0].IsCounterClockwise (tag "outer contour is counter clockwise" >> isTrue)
@@ -225,9 +227,25 @@ let tests =
             assertThat nonZero.PathCount (tag "NonZero keeps the loops" >> isEqualTo 4)
         )
 
+        test ("boolean operations between the offset loops and its cleanup", fun _ ->
+            // The NonZero simplification is the cleaned contour plus the three loops. The diamond touches the
+            // contour where their edges continue each other almost collinear, and the intersect phase found a
+            // crossing in the rounding noise there, which failed the linking for one order of the arguments.
+            let withLoops = Kontur.simplify (Kontur.createSingleton (offsetWithLoops, FillRule.NonZero))
+            let cleaned = Kontur.createSingleton offsetCleaned
+            let all = withLoops.SignedArea
+            let main = cleaned.SignedArea
+            for a, b, name in [ withLoops, cleaned, "loops first"; cleaned, withLoops, "cleaned first" ] do
+                assertThat (Kontur.union a b).SignedArea (tag $"union, {name}" >> isCloseTo Accuracy.medium all)
+                assertThat (Kontur.intersection a b).SignedArea (tag $"intersection, {name}" >> isCloseTo Accuracy.medium main)
+                assertThat (Kontur.xor a b).SignedArea (tag $"xor, {name}" >> isCloseTo Accuracy.medium (all - main))
+            assertThat (Kontur.difference withLoops cleaned).SignedArea (tag "loops minus cleaned" >> isCloseTo Accuracy.medium (all - main))
+            assertThat (Kontur.difference cleaned withLoops).PathCount (tag "cleaned minus loops is empty" >> isEqualTo 0)
+        )
+
         test ("UnionMany merges many polylines of mixed orientation", fun _ ->
             let a = square 0.0 0.0 10.0
-            let b = (square 5.0 0.0 10.0).Reverse () // clockwise, would cancel the overlap in one NonZero Kontur
+            let b = Polyline2D.reverse (square 5.0 0.0 10.0) // clockwise, would cancel the overlap in one NonZero Kontur
             let c = square 10.0 0.0 10.0
             let far = square 100.0 100.0 2.0
             let r = a.UnionMany [ b; c; far ]

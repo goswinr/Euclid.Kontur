@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Boolean operations failed with `Kontur.Link: no outgoing result edge` or `half edge is used twice` when two segments met end to end almost collinear, as they do between results that share crossing vertices, for example a `NonZero` and a `Positive` simplification of the same polygon. The intersect phase found a crossing in the rounding noise of their determinant. Segments that share an end now never get a crossing, and a crossing must be the same point on both segments within tolerance.
+
 ### Changed
 
 - Breaking: `Polyline2D.Simplify`, `SimplifyWith`, `simplify` and `simplifyWith` now keep only the regions a polyline winds around in its main direction, the sign of its signed area, using `FillRule.Positive` for a counter clockwise and `FillRule.Negative` for a clockwise polyline. Loops that wind the other way, like the inverted loops of an offset, are dropped for either input orientation. The old `NonZero` behavior is `Kontur.simplify (Kontur.createSingleton (polyline, FillRule.NonZero))`.
