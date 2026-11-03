@@ -113,6 +113,37 @@ type internal EngineState (tolerance: float) =
     /// The position of each half edge in VHalf.
     member val RingPos : int[] = [||] with get, set
 
+    // ---------------------- phase 8b, repair: planarity after merging and snapping ----------------------
+
+    /// Per vertex: the repair round in which the vertex is hot. A vertex is hot in round 1 if a vertex at another
+    /// position was merged into it or a T junction bent a segment to it, and in the next round if an edge was
+    /// rerouted through it. Only Graph.repair reads it.
+    member val Hot : int[] = [||] with get, set
+    /// Per vertex: the repair round in which the vertex is an end of a graph edge.
+    member val Used : int[] = [||] with get, set
+    /// The tree over the hot vertices of a repair round. Built only during a repair.
+    member val VertBvh : Bvh = Bvh 4 with get
+    /// Scratch of the repair phase: the ends of the graph edges.
+    member val VertItem : int[] = [||] with get, set
+    /// Scratch of the repair phase: the hot vertices among the ends of the graph edges, the items of VertBvh.
+    member val HotItem : int[] = [||] with get, set
+    /// Scratch of the repair phase: the graph edges at a hot vertex, the items of EdgeBvh during the repair.
+    member val CandItem : int[] = [||] with get, set
+    /// The graph edge of each reroute found by the repair phase.
+    member val FixEdge : int[] = [||] with get, set
+    /// The parameter along the graph edge of each reroute.
+    member val FixT : float[] = [||] with get, set
+    /// The vertex each reroute leads its graph edge through.
+    member val FixVert : int[] = [||] with get, set
+    /// The count of reroutes.
+    member val FixCount : int = 0 with get, set
+    /// The reroutes of graph edge e are FixOrder.[FixStart.[e] .. FixStart.[e+1] - 1], sorted by parameter. Length GCount + 1.
+    member val FixStart : int[] = [||] with get, set
+    /// Reroute ids grouped by graph edge, see FixStart.
+    member val FixOrder : int[] = [||] with get, set
+    /// The count of rounds the repair of the last operation ran, zero if its result edges linked at the first try. For tests.
+    member val RepairRounds : int = 0 with get, set
+
     // ---------------------- phase 6, winding ----------------------
 
     /// The tree over the graph edges, for the seed ray casts. Built only when the graph has more than one component.
@@ -143,6 +174,11 @@ type internal EngineState (tolerance: float) =
     member val EdgeOut : int[] = [||] with get, set
     /// Per half edge of a result edge: the half edge that follows it in its contour. -1 if not part of the result.
     member val Next : int[] = [||] with get, set
+    /// Per half edge of a result edge: the half edge it follows in its contour, -1 while none. Only Link.tryLink
+    /// reads it, to find a half edge that would follow two others.
+    member val Prev : int[] = [||] with get, set
+    /// Why the last Link.tryLink failed.
+    member val LinkError : string = "" with get, set
 
     /// Forgets all content but keeps the arrays.
     member s.Clear () : unit =
@@ -153,6 +189,7 @@ type internal EngineState (tolerance: float) =
         s.EvCount <- 0
         s.ECount <- 0
         s.GCount <- 0
+        s.RepairRounds <- 0
 
     // ---------------------- vertex helpers ----------------------
 
@@ -197,6 +234,18 @@ type internal EngineState (tolerance: float) =
         s.EFrom  <- Buffers.ensureInt s.EFrom  i count
         s.ETo    <- Buffers.ensureInt s.ETo    i count
         s.EGroup <- Buffers.ensureInt s.EGroup i count
+
+    /// Appends a reroute of a graph edge through a vertex.
+    member s.AddFix (edge: int, t: float, vert: int) : unit =
+        let i = s.FixCount
+        if i >= s.FixEdge.Length then
+            s.FixEdge <- Buffers.ensureInt   s.FixEdge i (i + 1)
+            s.FixT    <- Buffers.ensureFloat s.FixT    i (i + 1)
+            s.FixVert <- Buffers.ensureInt   s.FixVert i (i + 1)
+        Arr.set s.FixEdge i edge
+        Arr.set s.FixT i t
+        Arr.set s.FixVert i vert
+        s.FixCount <- i + 1
 
     /// Appends a sub segment. The caller must have made room with EnsureSubSegments.
     member s.AddSubSegment (from: int, to': int, group: int) : unit =

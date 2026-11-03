@@ -29,37 +29,11 @@ module internal Link =
     let inline private origin (s: EngineState) (h: int) : int =
         if h &&& 1 = 0 then Arr.get s.GA (h >>> 1) else Arr.get s.GB (h >>> 1)
 
-    /// <summary>Phase 8: links the selected edges into closed contours and appends them as Polyline2Ds.
-    /// At every vertex the contour continues along the first outgoing result edge found clockwise from the
-    /// reversed incoming edge. That is the tightest turn keeping the inside on the left, which separates
-    /// contours that only touch at a vertex instead of merging them into one self touching contour.
-    /// The successor of every result half edge is computed first, then the cycles of that mapping are written out.</summary>
-    let link (s: EngineState) (results: ResizeArray<Polyline2D>) : unit =
+    /// Pass 2 of tryLink: writes out every cycle of the successor mapping in Next once, into a Polyline2D of exactly
+    /// the right capacity. The mapping is one to one on the result half edges, so every walk closes.
+    let private writeCycles (s: EngineState) (results: ResizeArray<Polyline2D>) : unit =
         let h = 2 * s.GCount
-        s.Next <- Buffers.ensureInt s.Next 0 h
         let next = s.Next
-        let vHalf = s.VHalf
-        let vStart = s.VHalfStart
-        for i = 0 to h - 1 do
-            Arr.set next i (-1)
-        // pass 1: the successor of every outgoing half edge
-        for hh = 0 to h - 1 do
-            if isOutgoing s hh then
-                let twin = hh ^^^ 1
-                let u = origin s twin
-                let first = Arr.get vStart u
-                let last = Arr.get vStart (u + 1) - 1
-                let mutable pos = Arr.get s.RingPos twin
-                let mutable found = -1
-                let mutable steps = last - first
-                while found < 0 && steps > 0 do
-                    pos <- if pos = first then last else pos - 1 // clockwise is decreasing pseudo angle
-                    let cand = Arr.get vHalf pos
-                    if isOutgoing s cand then found <- cand
-                    steps <- steps - 1
-                if found < 0 then fail $"Kontur.Link: no outgoing result edge at vertex {u}, the winding numbers are inconsistent."
-                Arr.set next hh found
-        // pass 2: write out every cycle once, into a Polyline2D of exactly the right capacity
         for h0 = 0 to h - 1 do
             if Arr.get next h0 >= 0 then
                 let mutable count = 1
@@ -78,3 +52,60 @@ module internal Link =
                     hh <- nh
                 pl.AddXY (s.X (origin s h0), s.Y (origin s h0))
                 results.Add pl
+
+    /// <summary>Phase 8: links the selected edges into closed contours and appends them as Polyline2Ds.
+    /// At every vertex the contour continues along the first outgoing result edge found clockwise from the
+    /// reversed incoming edge. That is the tightest turn keeping the inside on the left, which separates
+    /// contours that only touch at a vertex instead of merging them into one self touching contour.
+    /// The successor of every result half edge is computed first, then the cycles of that mapping are written out.
+    /// Returns FALSE without appending anything if the result edges do not link into simple cycles: a vertex with
+    /// an incoming result edge and no outgoing one, or a result edge that would follow two others. Both happen only
+    /// when the winding numbers are inconsistent, because the graph is not planar, see Graph.repair. The reason is
+    /// left in LinkError. The successor mapping is checked to be one to one before the first contour is written,
+    /// so the second pass cannot fail.</summary>
+    let tryLink (s: EngineState) (results: ResizeArray<Polyline2D>) : bool =
+        let h = 2 * s.GCount
+        s.Next <- Buffers.ensureInt s.Next 0 h
+        s.Prev <- Buffers.ensureInt s.Prev 0 h
+        let next = s.Next
+        let prev = s.Prev
+        let vHalf = s.VHalf
+        let vStart = s.VHalfStart
+        for i = 0 to h - 1 do
+            Arr.set next i (-1)
+            Arr.set prev i (-1)
+        // pass 1: the successor of every outgoing half edge
+        let mutable ok = true
+        let mutable hh = 0
+        while ok && hh < h do
+            if isOutgoing s hh then
+                let twin = hh ^^^ 1
+                let u = origin s twin
+                let first = Arr.get vStart u
+                let last = Arr.get vStart (u + 1) - 1
+                let mutable pos = Arr.get s.RingPos twin
+                let mutable found = -1
+                let mutable steps = last - first
+                while found < 0 && steps > 0 do
+                    pos <- if pos = first then last else pos - 1 // clockwise is decreasing pseudo angle
+                    let cand = Arr.get vHalf pos
+                    if isOutgoing s cand then found <- cand
+                    steps <- steps - 1
+                if found < 0 then
+                    s.LinkError <- $"Kontur.Link: no outgoing result edge at vertex {u}, the winding numbers are inconsistent."
+                    ok <- false
+                elif Arr.get prev found >= 0 then
+                    s.LinkError <- $"Kontur.Link: half edge {found} would follow two result edges, the winding numbers are inconsistent."
+                    ok <- false
+                else
+                    Arr.set next hh found
+                    Arr.set prev found hh
+            hh <- hh + 1
+        if ok then
+            // pass 2: write out every cycle once, into a Polyline2D of exactly the right capacity
+            writeCycles s results
+        ok
+
+    /// <summary>Phase 8 as tryLink, failing with its reason if the result edges do not link into simple cycles.</summary>
+    let link (s: EngineState) (results: ResizeArray<Polyline2D>) : unit =
+        if not (tryLink s results) then fail s.LinkError

@@ -64,6 +64,30 @@ let private oracle (rand: Random) (subject: Kontur) (clip: Kontur) (op: ClipType
             assertThat (result.Contains pt) (tag $"point {pt.AsString} for {op}" >> isEqualTo expected)
     assertThat tested (tag "enough points tested" >> isGreaterThan 100)
 
+/// The point oracle for shapes at the scale of the tolerance: tests points of the input's bounding rectangle
+/// that are farther than minDist from every input edge.
+let private oracleWithin (rand: Random) (minDist: float) (subject: Kontur) (clip: Kontur) (op: ClipType) (result: Kontur) =
+    checkResult result
+    let br = if clip.IsEmpty then subject.BoundingRectangle else subject.BoundingRectangle.Union clip.BoundingRectangle
+    for _ in 1 .. 200 do
+        let pt = Pt (br.MinX + rand.NextDouble () * br.SizeX, br.MinY + rand.NextDouble () * br.SizeY)
+        if distToEdges subject pt > minDist && (clip.IsEmpty || distToEdges clip pt > minDist) then
+            let expected = ClipType.combine op (subject.Contains pt) (clip.Contains pt)
+            assertThat (result.Contains pt) (tag $"point {pt.AsString} for {op}" >> isEqualTo expected)
+
+/// A closed Polyline2D from integer grid points, scaled by f.
+let private gridPoly (f: float) (pts: (int * int) list) =
+    poly [ for x, y in pts do (float x * f, float y * f) ]
+
+/// Every operation in both operand orders, checked by the graph validator and by the oracle 3 tolerances from the input.
+let private checkNearTolerance (engine: KonturEngine) (a: Kontur) (b: Kontur) =
+    let rand = Random 31
+    for x, y in [ a, b; b, a ] do
+        for op in [ ClipType.Union; ClipType.Intersection; ClipType.Difference; ClipType.Xor ] do
+            let r = engine.Execute (x, y, op)
+            Graph.validate engine.State
+            oracleWithin rand (3.0 * engine.Tolerance) x y op r
+
 /// Runs all four operations with one engine and checks them against the oracle and the area identities.
 let private checkAll (rand: Random) (engine: KonturEngine) (subject: Kontur) (clip: Kontur) =
     let uni = engine.Execute (subject, clip, ClipType.Union)
@@ -431,6 +455,67 @@ let tests =
             let engine = KonturEngine 1e-6
             checkAll rand engine a b
             Graph.validate engine.State
+        )
+
+        test ("edges moved by merging are rerouted so the graph stays planar", fun _ ->
+            // On a grid of 2.5 tolerances, merging four crossings into two moved both ends of a clip sub segment by
+            // almost a tolerance. It came to pass through the crossing vertex at (9.16, 10.30) and to cross an edge
+            // leaving that vertex, the winding numbers disagreed and the linking failed.
+            let engine = KonturEngine 1e-6
+            let a = Kontur.createSingleton (gridPoly 2.5e-6 [ 0, 11; 8, 2; 13, 10 ])
+            let b = Kontur.createSingleton (gridPoly 2.5e-6 [ 11, 11; 6, 1; 9, 12; 1, 9; 11, 10; 4, 8; 13, 12 ])
+            engine.Execute (a, b, ClipType.Union) |> ignore
+            assertThat engine.State.RepairRounds (tag "the repair ran" >> isGreaterThan 0)
+            checkNearTolerance engine a b
+        )
+
+        test ("vertices within tolerance of each other's edges but not of each other are merged", fun _ ->
+            // Grid of 2 tolerances. Some vertices lie within tolerance of each other's edges but not of each other,
+            // like four vertices around the crossing of two edges, each within tolerance of the other edge.
+            // Rerouting the edges through each other's ends gives back the same edges, so after a few rounds the
+            // repair merges these vertices instead.
+            let engine = KonturEngine 1e-6
+            let a = Kontur.createSingleton (gridPoly 2e-6 [ 7, 6; 0, 4; 5, 13; 12, 5; 3, 8; 7, 10 ])
+            let b = Kontur.createSingleton (gridPoly 2e-6 [ 11, 4; 0, 1; 14, 10; 10, 10; 2, 9; 13, 3; 6, 9 ])
+            engine.Execute (a, b, ClipType.Union) |> ignore
+            assertThat engine.State.RepairRounds (tag "the reroutes did not settle, the merges did" >> isGreaterThan Graph.RerouteRounds)
+            assertThat engine.State.RepairRounds (tag "the merges settled" >> isLessThan Graph.MaxRepairRounds)
+            checkNearTolerance engine a b
+        )
+
+        test ("a segment bent onto another by two T junctions is rerouted through the crossing on it", fun _ ->
+            // Grid of 1.5 tolerances. The clip's long segment passes within tolerance of the subject vertices at (5, 5)
+            // and (9, 9), so it is split at both and its middle piece lies on the subject segment between them. That
+            // segment was split at its crossing (7, 7) with the clip's first segment, the bent piece was not, and the
+            // two collinear edges overlapped. No merge moved a vertex, the T junctions alone bent the edge.
+            let engine = KonturEngine 1e-6
+            let a = Kontur.createSingleton (gridPoly 1.5e-6 [ 2, 3; 5, 5; 9, 9; 5, 9 ])
+            let b = Kontur.createSingleton (gridPoly 1.5e-6 [ 3, 4; 11, 10; 0, 0 ])
+            engine.Execute (a, b, ClipType.Union) |> ignore
+            assertThat engine.State.RepairRounds (tag "the repair ran" >> isGreaterThan 0)
+            checkNearTolerance engine a b
+        )
+
+        test ("random polygons on a grid of a few tolerances against the point oracle", fun _ ->
+            // Every crossing is near other vertices and edges here, so merging and snapping move edges everywhere.
+            // A grid spacing of 2.5 tolerances failed in one of six operations before the repair phase existed.
+            let rand = Random 32
+            let engine = KonturEngine 1e-6
+            for i in 1 .. 30 do
+                let f = if i % 2 = 0 then 2.5e-6 else 5e-6
+                let pts n = [ for _ in 1 .. n do (rand.Next 13, rand.Next 13) ]
+                let a = Kontur.create ([ gridPoly f (pts (5 + rand.Next 10)) ], if i % 3 = 0 then FillRule.EvenOdd else FillRule.NonZero)
+                let b = Kontur.createSingleton (gridPoly f (pts (5 + rand.Next 10)))
+                checkNearTolerance engine a b
+        )
+
+        test ("operations on clean input do not run the repair", fun _ ->
+            let engine = KonturEngine 1e-6
+            let a = Kontur.createSingleton (square 0.0 0.0 10.0)
+            let b = Kontur.createSingleton (square 5.0 5.0 10.0)
+            for op in [ ClipType.Union; ClipType.Intersection; ClipType.Difference; ClipType.Xor ] do
+                engine.Execute (a, b, op) |> ignore
+                assertThat engine.State.RepairRounds (tag $"no repair rounds for {op}" >> isEqualTo 0)
         )
 
         test ("engine rejects bad tolerances and open paths", fun _ ->

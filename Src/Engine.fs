@@ -54,7 +54,13 @@ type KonturEngine (tolerance: float) =
             Graph.buildRings s
             Winding.propagate s
             Link.select s subject.FillRule clip.FillRule op
-            Link.link s results
+            if not (Link.tryLink s results) then
+                // merging or snapping moved an edge across another one, see Graph.repair
+                Graph.repair s
+                Graph.buildRings s
+                Winding.propagate s
+                Link.select s subject.FillRule clip.FillRule op
+                Link.link s results
         Kontur.createUnchecked (results, FillRule.Positive)
 
     /// Resolves the self intersections and overlaps of one Kontur under its fill rule.

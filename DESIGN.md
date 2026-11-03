@@ -47,8 +47,10 @@ this is safe.
 
 The known weak spot of every tolerance based approach: merging vertices that are within
 tolerance moves vertices by up to `tolerance`, which can create a crossing of two edges that
-did not cross before. Those residual crossings are at the tolerance scale. Version 1 ignores
-them and documents it. Clipper2 has the same class of artefacts.
+did not cross before. Those residual crossings are at the tolerance scale. Clipper2 has the
+same class of artefacts. Ignoring them was not enough: an edge moved onto another vertex or
+across another edge breaks the planarity of the graph, and the operation fails. The repair
+phase of section 4.5.1 reroutes such edges through the vertices they come near.
 
 ## 3. Data model
 
@@ -192,6 +194,9 @@ vertices, segments and edges. The phases:
   [7] select        per edge: inside on left? inside on right? keep if they differ, orient inside to the left
        |
   [8] link          walk selected edges into closed contours, tightest turn at each vertex
+       |
+  [8b] repair       only if the edges do not link: reroute moved edges through the vertices they come within
+       |            tolerance of, then rings, winding, select and link again
        |
     Kontur out       one Polyline2D per contour, outer CCW, holes CW, FillRule.Positive
 ```
@@ -382,6 +387,73 @@ This is a key sort, so the ordering is always a consistent total order even for 
 are nearly parallel. For nearly parallel edges the geometric order may be wrong, and section
 7 explains why that stays a local, cosmetic error.
 
+### 4.5.1 Repair
+
+Winding propagation and linking need a planar graph: edges meet only at shared vertices.
+Two things after the intersect phase move edges away from the input segments they come from,
+each by up to the tolerance:
+
+- Merging a vertex into the representative of its cluster moves the ends of its sub segments.
+- Splitting a segment at an input vertex within tolerance of it, a T junction, bends its sub segments towards that vertex.
+
+A moved edge can come to pass through another vertex, overlap another edge, or cross one,
+without sharing a vertex with it. Then the winding numbers disagree around the vertices and
+linking fails with `no outgoing result edge` or `half edge is used twice`. Random polygons on
+an integer grid failed like this in one of six operations when the grid spacing was 2.5
+tolerances, and in one of fifty at 10 tolerances. The polysXY dataset at small scales and
+nearly concurrent crossings in real data have the same kind of merges.
+
+The repair runs only when linking fails. `Link.tryLink` checks, while it computes the successor
+of every result half edge, that each one has a successor and is the successor of at most one
+other. If not, it returns `false` before it writes the first contour, and the engine runs
+`Graph.repair`, then builds the rings, the winding numbers and the selection again and links once
+more, failing with the reason only if that fails too. An operation that linked before gives exactly
+the result it gave before, at the cost of one more read and write per result half edge in the
+link phase.
+
+The repair applies the T junction rule of the intersect phase once more, now to the graph, but
+only around **hot** vertices: a representative that took in a vertex at another position, or that
+a T junction bent a segment to.
+Every graph edge within tolerance of a hot vertex is rerouted through it, and every edge leaving
+a hot vertex is rerouted through every other vertex within tolerance of it. Rerouting cuts the
+edge at those vertices, sorted by their parameter, and the pieces carry the edge's winding
+deltas back through `buildEdges`, which merges them with the edges they now coincide with. A
+reroute bends an edge by up to the tolerance again, so the next round checks around the vertices
+that were used, until a round finds nothing. Two small trees answer the queries of a round, one
+over the hot vertices, which every edge asks, and one over the edges at hot vertices, expanded by
+the tolerance, which every vertex asks.
+
+Two other triggers were tried. Running the repair on every input with a moving merge or a bending
+T junction gave the same results on the failing inputs, but noisy data has such merges and T
+junctions all over: the polysXY self union at scale 1 has 140 moving merges and 894 bending T
+junctions and needs no repair at all. A round costs a tree query per edge and per vertex, about as
+much as the whole rest of the pipeline per edge, and that union became five times slower.
+Checking in the winding propagation that both ends of every edge give it the same winding numbers
+finds every non planar graph, also the few that still link. It cost about two percent under Node.
+The graphs it finds beyond the ones that fail to link gave no wrong region in the point oracle,
+farther than twice the tolerance from the input, so the link phase is the cheaper place to look.
+
+The repair uses existing vertices only. It never creates one, so every vertex of the result is an
+input vertex or a crossing of two input segments, with the split events that created it.
+
+Four vertices about a tolerance apart around the crossing of two edges, each vertex within
+tolerance of the other edge but not of the other vertices, make the reroutes undo each other:
+rerouting both edges through the ends of the other gives back the same two edges. So after
+`RerouteRounds` rounds the repair stops rerouting and merges every vertex an edge would be
+rerouted through into the nearer end of that edge, as if it were within tolerance of it. Such a
+feature is below the tolerance and collapses, which the tolerance model allows. Every merging
+round removes a cluster, so the repair ends.
+
+A rule that reroutes only edges that actually cross, touch or overlap another edge was tried
+too, since it reroutes less. It failed more often: whether two edges meet at the tolerance
+scale is exactly the sign of a near zero determinant that section 7 keeps out of the topology,
+and it missed overlaps of edges that share one end.
+
+What is left: merges chained over many tolerances. Dense random polygons on a grid of 1.5
+tolerances, where whole groups of crossings collapse into one vertex several tolerances away,
+still fail in about one of a hundred operations. Edges moved that far can cross far from every
+vertex, and resolving that would need new vertices.
+
 ### 4.6 Winding
 
 For every edge we need the winding number of subject and of clip on its left side. The right
@@ -569,12 +641,14 @@ on a degenerate input. The design avoids both like this:
 - Topology never depends on the sign of a determinant. Crossings are decided by tolerance tests, the intersection point is one shared vertex, and coincidence is decided by clustering. Every later phase works on integer vertex ids.
 - The angular order is a key sort of pseudo angles: always a valid total order, so sorting cannot misbehave and linking cannot loop. Geometric mistakes for nearly parallel edges are confined to the wedge between them.
 - Winding deltas sum to zero around every vertex by construction, so propagation errors do not spread.
+- If the result edges do not link into simple cycles, edges that merging or snapping moved onto other vertices or edges are rerouted through those vertices, and the winding numbers, the selection and the linking are computed again (section 4.5.1).
 - The ray cast uses the half open rule, which is exact for any float input: a vertex exactly on the ray is counted once, a horizontal segment on the ray never.
 - Linking always terminates because every selected edge is used at most once and in degree equals out degree at every vertex.
 - `Graph.validate` function used in tests: parent pointers form a forest, CSR ranges are contiguous, delta sums are zero, every vertex has equal in and out degree in the selection.
 
 What it does not guarantee: features smaller than `tolerance` may disappear or become slivers,
-and the residual crossings described in section 2 are not resolved.
+and edges moved by merges chained over many tolerances can still cross far from every vertex
+(section 4.5.1).
 
 ## 8. Testing
 
@@ -605,7 +679,7 @@ Src/Buffers.fs              ensureCapacity helpers, in place sorts on parallel a
 Src/Bvh.fs                  the private float array BVH, section 5
 Src/Ingest.fs               phase 1
 Src/Intersect.fs            phases 2 and 3
-Src/Graph.fs                phases 4 and 5, pseudo angle
+Src/Graph.fs                phases 4, 5 and 8b, pseudo angle
 Src/Winding.fs              phase 6, ray cast
 Src/Link.fs                 phases 7 and 8
 Src/Engine.fs               KonturEngine, owns every buffer, runs the phases
@@ -634,6 +708,7 @@ Reviewed on 2026-09-19. These replace the earlier open questions.
 | 6 | Fable | both targets must be fast: raw typed arrays, no struct returns in hot loops, Node benchmarks (section 6) |
 | 7 | winding | per edge ray casting was built first as the test oracle, O(E) propagation is implemented and shipped (section 4.6) |
 | 8 | orientation in `Polyline2D.Simplify` | the fill rule follows the sign of the signed area, `Positive` or `Negative`, decided on 2026-11-03, section 3.2 |
+| 9 | residual crossings after merging | repaired by rerouting edges through the vertices they come within tolerance of, around moved vertices only, with merging as the fallback when the reroutes do not settle; run only when the result edges do not link at the first try; decided on 2026-11-04, section 4.5.1 |
 
 Still at their defaults, not yet discussed: absolute tolerance `1e-6` per engine, open input
 polylines fail, collinear output vertices preserved, no nesting tree in version 1,

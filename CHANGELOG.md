@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Boolean operations failed with `Kontur.Link: no outgoing result edge` or `half edge is used twice` when two segments met end to end almost collinear, as they do between results that share crossing vertices, for example a `NonZero` and a `Positive` simplification of the same polygon. The intersect phase found a crossing in the rounding noise of their determinant. Segments that share an end now never get a crossing, and a crossing must be the same point on both segments within tolerance.
+- Boolean operations failed with the same errors when merging vertices within tolerance, or splitting a segment at a T junction, moved an edge onto another vertex or across another edge, typically on shapes whose features are a few tolerances apart. When the result edges do not link, a new repair phase now reroutes the moved edges through the vertices they come within tolerance of, merging those vertices if the reroutes do not settle, and the operation links again. Operations that linked before give the same results as before.
 
 ### Changed
 
