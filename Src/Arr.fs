@@ -10,7 +10,7 @@ module internal Arr =
 
     /// arr.[i] without a bounds check under Fable.
     let inline get (arr: 'T[]) (i: int) : 'T =
-        #if FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT
+        #if RELEASE && (FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT)
         Fable.Core.JsInterop.emitJsExpr (arr, i) "$0[$1]"
         #else
         arr.[i]
@@ -18,7 +18,7 @@ module internal Arr =
 
     /// arr.[i] <- v without a bounds check under Fable.
     let inline set (arr: 'T[]) (i: int) (v: 'T) : unit =
-        #if FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT
+        #if RELEASE && (FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT)
         Fable.Core.JsInterop.emitJsStatement (arr, i, v) "$0[$1] = $2"
         #else
         arr.[i] <- v
@@ -29,7 +29,7 @@ module internal Rarr =
 
     /// arr.[i] without a bounds check under Fable.
     let inline get (arr: 'T ResizeArray) (i: int) : 'T =
-        #if FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT
+        #if RELEASE && (FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT)
         Fable.Core.JsInterop.emitJsExpr (arr, i) "$0[$1]"
         #else
         arr.[i]
