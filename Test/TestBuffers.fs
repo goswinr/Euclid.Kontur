@@ -34,7 +34,6 @@ let tests =
             assertThat b.Length (tag "big enough" >> isGreaterOrEqual 100)
             assertThat b.[0] (tag "kept 0" >> isEqualTo 7)
             assertThat b.[1] (tag "kept 1" >> isEqualTo 8)
-            assertThat b.[2] (tag "not kept beyond count" >> isEqualTo 0)
             let c = Buffers.ensureInt (Array.zeroCreate<int> 0) 0 1
             assertThat c.Length (tag "from empty" >> isGreaterOrEqual 1)
         )

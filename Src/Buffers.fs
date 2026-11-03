@@ -8,6 +8,7 @@ open System
 module internal Buffers =
 
     /// Returns a float array with at least minCapacity items, keeping the first count items.
+    /// The items from count on are unspecified, they may hold old values.
     /// Returns the same array if it is already big enough, otherwise a new array of at least twice the old size.
     /// Not generic, so that Fable emits a Float64Array.
     let ensureFloat (arr: float[]) (count: int) (minCapacity: int) : float[] =
@@ -15,11 +16,13 @@ module internal Buffers =
             arr
         else
             let newCapacity = max minCapacity (max 16 (arr.Length * 2))
-            let bigger = Array.zeroCreate<float> newCapacity
-            if count > 0 then Array.blit arr 0 bigger 0 count
-            bigger
+            Arr.newWithSizeFloat arr count newCapacity
+            // let bigger = Array.zeroCreate<float> newCapacity
+            // if count > 0 then Array.blit arr 0 bigger 0 count
+            // bigger
 
     /// Returns an int array with at least minCapacity items, keeping the first count items.
+    /// The items from count on are unspecified, they may hold old values.
     /// Returns the same array if it is already big enough, otherwise a new array of at least twice the old size.
     /// Not generic, so that Fable emits an Int32Array.
     let ensureInt (arr: int[]) (count: int) (minCapacity: int) : int[] =
@@ -27,9 +30,10 @@ module internal Buffers =
             arr
         else
             let newCapacity = max minCapacity (max 16 (arr.Length * 2))
-            let bigger = Array.zeroCreate<int> newCapacity
-            if count > 0 then Array.blit arr 0 bigger 0 count
-            bigger
+            Arr.newWithSizeInt arr count newCapacity
+            // let bigger = Array.zeroCreate<int> newCapacity
+            // if count > 0 then Array.blit arr 0 bigger 0 count
+            // bigger
 
     /// Sorts idx.[first..last] in place, using the given strict "less than" comparison on the item ids stored in idx.
     /// A quicksort with a median of three pivot and an insertion sort for short ranges.

@@ -25,6 +25,35 @@ module internal Arr =
         #endif
 
 
+    /// A new float array of the given size that starts with the first count items of arr.
+    /// The items from count on are unspecified: under Fable all of arr is copied with one native call.
+    let newWithSizeFloat (arr: float[]) (count: int) (size: int) : float[] =
+        #if RELEASE && (FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT)
+        Fable.Core.JsInterop.emitJsStatement (arr, count, size) """
+            const newBuffer = new Float64Array($2);
+            if ($1 > 0) newBuffer.set($0);
+            return newBuffer;"""
+        #else
+        let bigger = Array.zeroCreate<float> size
+        Array.blit arr 0 bigger 0 count
+        bigger
+        #endif
+
+    /// A new int array of the given size that starts with the first count items of arr.
+    /// The items from count on are unspecified: under Fable all of arr is copied with one native call.
+    let newWithSizeInt (arr: int[]) (count: int) (size: int) : int[] =
+        #if RELEASE && (FABLE_COMPILER_JAVASCRIPT || FABLE_COMPILER_TYPESCRIPT)
+        Fable.Core.JsInterop.emitJsStatement (arr, count, size) """
+            const newBuffer = new Int32Array($2);
+            if ($1 > 0) newBuffer.set($0);
+            return newBuffer;"""
+        #else
+        let bigger = Array.zeroCreate<int> size
+        Array.blit arr 0 bigger 0 count
+        bigger
+        #endif
+
+
 module internal Rarr =
 
     /// arr.[i] without a bounds check under Fable.
