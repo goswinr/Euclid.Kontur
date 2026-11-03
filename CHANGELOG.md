@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Breaking: `Polyline2D.Simplify`, `SimplifyWith`, `simplify` and `simplifyWith` now keep only the regions a polyline winds around in its main direction, the sign of its signed area, using `FillRule.Positive` for a counter clockwise and `FillRule.Negative` for a clockwise polyline. Loops that wind the other way, like the inverted loops of an offset, are dropped for either input orientation. The old `NonZero` behavior is `Kontur.simplify (Kontur.createSingleton (polyline, FillRule.NonZero))`.
+
 ## [0.2.0] - 2026-10-10
 
 ### Added

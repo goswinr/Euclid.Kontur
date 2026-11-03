@@ -90,7 +90,11 @@ let mergedAtTolerance = p.UnionWith 1e-4 q // every member has a ...With variant
 let alsoMerged = Polyline2D.union p q // and a static function: union, unionWith, unionMany, ...
 ```
 
-Each polyline is one region under the `NonZero` fill rule, so its orientation does not matter.
+In `Union`, `Intersection`, `Difference`, `Xor` and `UnionMany` each polyline is one region under
+the `NonZero` fill rule, so its orientation does not matter. `Simplify` is different: it keeps only
+the regions a polyline winds around in its main direction, the sign of its signed area, and drops
+the loops that wind the other way, like the inverted loops an offset leaves behind. A counter
+clockwise and a clockwise polyline give the same result.
 The result is a `ResizeArray<Polyline2D>` because one operation can return several contours and
 holes, oriented like the paths of a result `Kontur`. Use a `Kontur` for other fill rules, for
 regions made of several paths, or to feed a result into the next operation.

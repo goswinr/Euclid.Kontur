@@ -157,6 +157,15 @@ type Polyline2D with
 ```
 
 Each polyline becomes a `Kontur.createSingleton` under `NonZero`, so its orientation does not matter.
+`Simplify` is the exception: it uses `Positive` for a polyline with a positive or zero `SignedArea`
+and `Negative` for a negative one. Its main use is cleaning up offsets, whose inverted loops wind
+against the main loop and must be dropped, which `NonZero` would keep. A fixed `Positive` works
+only for counter clockwise input: for clockwise input it keeps exactly the inverted loops and drops
+the main region. The signed area is the sum of the region areas weighted by their winding numbers,
+so the main loop decides it as long as the inverted loops are smaller in total. Choosing the rule
+from the sign equals reversing a clockwise polyline and using `Positive`, without the copy.
+Normalizing orientation inside the engine instead is not an option: the paths of a `Kontur` are
+oriented on purpose, a clockwise path is a hole under `NonZero`.
 The result is the `Paths` of the result `Kontur`. A list of polylines and not one polyline, because
 an operation can return several contours and holes.
 
@@ -611,6 +620,7 @@ Reviewed on 2026-09-19. These replace the earlier open questions.
 | 5b | tolerance | on the `KonturEngine` constructor, with a default and a `...With tolerance` variant on the convenience functions; kept as is for now |
 | 6 | Fable | both targets must be fast: raw typed arrays, no struct returns in hot loops, Node benchmarks (section 6) |
 | 7 | winding | per edge ray casting was built first as the test oracle, O(E) propagation is implemented and shipped (section 4.6) |
+| 8 | orientation in `Polyline2D.Simplify` | the fill rule follows the sign of the signed area, `Positive` or `Negative`, decided on 2026-11-03, section 3.2 |
 
 Still at their defaults, not yet discussed: absolute tolerance `1e-6` per engine, open input
 polylines fail, collinear output vertices preserved, no nesting tree in version 1,
