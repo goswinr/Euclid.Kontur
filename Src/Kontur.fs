@@ -30,6 +30,8 @@ type Kontur private (paths: ResizeArray<Polyline2D>, fillRule: FillRule) =
             fail $"Kontur.{methodName}: path {pathIndex} is not closed, its first point {s.AsString} and last point {e.AsString} differ. Use Polyline2D.CloseInPlace first."
 
     /// The closed paths of this Kontur. Each path stores its first point twice, as first and as last point.
+    /// The paths of a boolean result come in no particular order: there may be several outer paths, and a hole
+    /// may come before the outer path around it. Use Outers and Holes to tell them apart.
     /// This is the live internal list, do not add open paths to it.
     member _.Paths : ResizeArray<Polyline2D> = paths
 
@@ -74,6 +76,30 @@ type Kontur private (paths: ResizeArray<Polyline2D>, fillRule: FillRule) =
             a <- a + paths.[i].SignedArea
         a
 
+    /// The counter clockwise paths of this Kontur, those with a positive signed area, in the order of Paths.
+    /// For a Kontur returned by a boolean operation these are its outer paths, and there can be any number of them.
+    /// For other Kontur values the orientation alone does not tell outer paths from holes, under NonZero a clockwise
+    /// path on its own is filled too. Simplify such a Kontur first.
+    /// A new list on every call, the Polyline2Ds are not copied.
+    member _.Outers : ResizeArray<Polyline2D> =
+        let r = ResizeArray<Polyline2D> ()
+        for i = 0 to paths.Count - 1 do
+            let p = paths.[i]
+            if p.SignedArea > 0.0 then r.Add p
+        r
+
+    /// The clockwise paths of this Kontur, those with a negative signed area, in the order of Paths.
+    /// For a Kontur returned by a boolean operation these are its holes. Each lies inside one of the Outers,
+    /// but not necessarily after it in Paths.
+    /// For other Kontur values the orientation alone does not tell outer paths from holes, simplify them first.
+    /// A new list on every call, the Polyline2Ds are not copied.
+    member _.Holes : ResizeArray<Polyline2D> =
+        let r = ResizeArray<Polyline2D> ()
+        for i = 0 to paths.Count - 1 do
+            let p = paths.[i]
+            if p.SignedArea < 0.0 then r.Add p
+        r
+
     /// Format this Kontur into a string with its fill rule, count of paths and count of points.
     member s.AsString : string =
         let mutable pts = 0
@@ -112,3 +138,76 @@ type Kontur private (paths: ResizeArray<Polyline2D>, fillRule: FillRule) =
     /// Creates an empty Kontur without any paths.
     static member empty (fillRule: FillRule) : Kontur =
         Kontur (ResizeArray<Polyline2D> 0, fillRule)
+
+    /// The counter clockwise paths of the Kontur, the outer paths of a boolean result. See the member Outers.
+    static member outers (k: Kontur) : ResizeArray<Polyline2D> =
+        k.Outers
+
+    /// The clockwise paths of the Kontur, the holes of a boolean result. See the member Holes.
+    static member holes (k: Kontur) : ResizeArray<Polyline2D> =
+        k.Holes
+
+    /// Calls the action for every path of the Kontur, in the order of Paths.
+    static member inline iter ([<InlineIfLambda>] action: Polyline2D -> unit) (k: Kontur) : unit =
+        let ps = k.Paths
+        for i = 0 to ps.Count - 1 do
+            action ps.[i]
+
+    /// Calls the action with the index and the path for every path of the Kontur, in the order of Paths.
+    static member inline iteri ([<InlineIfLambda>] action: int -> Polyline2D -> unit) (k: Kontur) : unit =
+        let ps = k.Paths
+        for i = 0 to ps.Count - 1 do
+            action i ps.[i]
+
+    /// <summary>A new Kontur of the paths the mapping returns for each path, under the same fill rule.
+    /// Fails if the mapping returns a path that is not closed or has fewer than three distinct points.
+    /// A mapping that mirrors the paths also reverses their orientation. Then under FillRule.Positive the outer
+    /// paths of a boolean result wind the wrong way and nothing is inside any more, unless the mapping reverses them too.</summary>
+    /// <param name="mapping">Gets one path of the Kontur and returns the closed path that replaces it, for example a moved copy.</param>
+    /// <param name="k">The Kontur to map.</param>
+    /// <returns>A new Kontur with one path per path of k.</returns>
+    static member map (mapping: Polyline2D -> Polyline2D) (k: Kontur) : Kontur =
+        let ps = k.Paths
+        let r = ResizeArray<Polyline2D> ps.Count
+        for i = 0 to ps.Count - 1 do
+            let p = mapping ps.[i]
+            Kontur.checkPath "map" i p
+            r.Add p
+        Kontur (r, k.FillRule)
+
+    /// <summary>A new Kontur with only the paths for which the predicate returns TRUE, under the same fill rule.
+    /// The Polyline2Ds are not copied.
+    /// Dropping an outer path of a boolean result but not its holes leaves those holes on their own:
+    /// under FillRule.Positive they fill nothing, but they still count in PathCount and SignedArea.</summary>
+    /// <param name="predicate">Gets one path of the Kontur and returns TRUE to keep it.</param>
+    /// <param name="k">The Kontur to filter.</param>
+    /// <returns>A new Kontur with the kept paths in the order of Paths.</returns>
+    static member filter (predicate: Polyline2D -> bool) (k: Kontur) : Kontur =
+        let ps = k.Paths
+        let r = ResizeArray<Polyline2D> ()
+        for i = 0 to ps.Count - 1 do
+            let p = ps.[i]
+            if predicate p then r.Add p
+        Kontur (r, k.FillRule)
+
+    /// TRUE if the predicate returns TRUE for at least one path of the Kontur. Stops at the first such path.
+    /// FALSE for an empty Kontur.
+    static member inline exists ([<InlineIfLambda>] predicate: Polyline2D -> bool) (k: Kontur) : bool =
+        let ps = k.Paths
+        let mutable found = false
+        let mutable i = 0
+        while not found && i < ps.Count do
+            found <- predicate ps.[i]
+            i <- i + 1
+        found
+
+    /// TRUE if the predicate returns TRUE for every path of the Kontur. Stops at the first path where it does not.
+    /// TRUE for an empty Kontur.
+    static member inline forall ([<InlineIfLambda>] predicate: Polyline2D -> bool) (k: Kontur) : bool =
+        let ps = k.Paths
+        let mutable all = true
+        let mutable i = 0
+        while all && i < ps.Count do
+            all <- predicate ps.[i]
+            i <- i + 1
+        all

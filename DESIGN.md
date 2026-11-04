@@ -91,10 +91,18 @@ type Kontur =
     member WindingNumber : Pt -> int         // sum of Polyline2D.WindingNumber over all paths
     member Contains : Pt -> bool             // fill rule applied to WindingNumber
     member IsEmpty : bool
+    member Outers : ResizeArray<Polyline2D>  // counter clockwise paths, the outer paths of a result
+    member Holes : ResizeArray<Polyline2D>   // clockwise paths, the holes of a result
 
     static member create : paths: seq<Polyline2D> * fillRule: FillRule -> Kontur
     static member createSingleton : Polyline2D * ?fillRule: FillRule -> Kontur   // default NonZero
+    static member outers, holes              // the same as the members, as functions
+    static member iter, iteri, map, filter, exists, forall   // over Paths; map and filter keep the fill rule
 ```
+
+`Outers` and `Holes` go by orientation alone, not by nesting. That is exact for a result, which
+is simple and `Positive`, and only a guess for an input `Kontur`: under `NonZero` a clockwise path
+on its own is filled. A path with zero signed area is in neither list.
 
 The docstring above is part of the design: the reason for the fill rule living on the `Kontur`
 must stay explicit in the published XML docs of `Kontur`, `Kontur.create` and `FillRule`, so a
@@ -600,6 +608,12 @@ parallel edges is wrong, the walk still closes, the result region is still corre
 
 Output orientation follows from "inside on the left": outer contours counter clockwise with
 positive `SignedArea`, holes clockwise. The result `Kontur` gets `FillRule.Positive`.
+
+The contours come out in the order of the lowest half edge on each cycle, which follows the
+vertex ids and so the order of the input, not the nesting. A hole can come before the outer
+contour around it: the xor of a small square with a big square around it gives the hole first,
+because the subject's vertices have the lower ids. The order is not part of the contract, the
+orientation is. `Kontur.Outers` and `Kontur.Holes` split a result by it.
 
 With `RemoveCollinear` set, a vertex whose two output edges are collinear within tolerance is
 skipped while writing.

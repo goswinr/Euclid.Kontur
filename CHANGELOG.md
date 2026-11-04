@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Vertex data: `KonturData<'T>` pairs a `Kontur` with one value of any type per point, and `KonturEngine.ExecuteWithData`, `SimplifyWithData` and `UnionAllWithData` hand each value on to the result vertex its point becomes. A new vertex where two segments cross gets the value of a caller's function of the two `CrossedSegment<'T>`, called once per crossing in the result. Operations without data are not slowed down.
+- `Kontur.Outers` and `Kontur.Holes`, and the functions `Kontur.outers` and `Kontur.holes`: the counter clockwise and the clockwise paths, which are the outer paths and the holes of a boolean result. The paths of a result come in no particular order, a hole may come before its outer path.
+- `Kontur.iter`, `iteri`, `map`, `filter`, `exists` and `forall` over the paths of a Kontur. `map` and `filter` return a new Kontur under the same fill rule, `map` fails on a path that is not closed.
 
 ### Fixed
 
