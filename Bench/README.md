@@ -56,6 +56,6 @@ Copied from the Klip repository (`Test/Scripts/data`). `polysXY.json` is the noi
 `polysXYOrig.json` the same polygons without the noise, both exported by Klip's `rhinoToJson.fsx` from the
 polylines in `union.3dm`. `unionAllScale.3dm` and `poly.png` came along with them.
 
-## `Notes/`
+## Notes
 
-Working notes of the performance sessions, with the recorded results. The paths in them are as of the session.
+`2026-09-19-performance-and-klip-tests.md` and `FableArrayItemGetter.md` are working notes of the performance sessions, with the recorded results. The paths in them are as of the session.
